@@ -91,6 +91,59 @@ async function startServer() {
   saveNow();
   console.log('数据库表结构初始化完成');
 
+  // 自动导入题库（如果数据库为空）
+  const questionCount = db.prepare('SELECT COUNT(*) as count FROM questions').get();
+  if (questionCount.count === 0) {
+    console.log('检测到空数据库，开始自动导入题库...');
+    const { parseQuestionsFromExcel } = require('./utils/excel');
+    const excelFiles = [
+      { name: '专业知识题库_已修复.xlsx', label: '专业知识' },
+      { name: '公共知识题库_已修复.xlsx', label: '公共知识' }
+    ];
+    
+    for (const file of excelFiles) {
+      const filePath = path.join(__dirname, '..', file.name);
+      const fs = require('fs');
+      if (!fs.existsSync(filePath)) {
+        console.log(`  跳过 ${file.label}（文件不存在: ${filePath}）`);
+        continue;
+      }
+      
+      const { questions, errors } = parseQuestionsFromExcel(filePath);
+      console.log(`  导入 ${file.label}: ${questions.length} 题, ${errors.length} 个错误`);
+      
+      let imported = 0;
+      const insertQ = db.prepare(
+        'INSERT INTO questions (subject_id, chapter_id, type, content, option_a, option_b, option_c, option_d, answer, analysis, difficulty) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      );
+      
+      for (const q of questions) {
+        try {
+          let subject = db.prepare('SELECT id FROM subjects WHERE name = ?').get(q.subjectName);
+          if (!subject) {
+            const r = db.prepare('INSERT INTO subjects (name) VALUES (?)').run(q.subjectName);
+            subject = { id: r.lastInsertRowid };
+          }
+          let chapter = db.prepare('SELECT id FROM chapters WHERE name = ? AND subject_id = ?').get(q.chapterName, subject.id);
+          if (!chapter) {
+            const r = db.prepare('INSERT INTO chapters (subject_id, name) VALUES (?, ?)').run(subject.id, q.chapterName);
+            chapter = { id: r.lastInsertRowid };
+          }
+          insertQ.run(subject.id, chapter.id, q.type, q.content,
+            q.optionA, q.optionB, q.optionC, q.optionD, q.answer, q.analysis || '', 1);
+          imported++;
+        } catch (e) {
+          if (imported < 3) console.log(`    导入失败: ${String(e).substring(0, 80)}`);
+        }
+      }
+      console.log(`  成功导入: ${imported} 题`);
+    }
+    
+    const newCount = db.prepare('SELECT COUNT(*) as count FROM questions').get();
+    console.log(`自动导入完成，共 ${newCount.count} 题`);
+    saveNow();
+  }
+
   const app = express();
   const PORT = process.env.PORT || 8080;
 
