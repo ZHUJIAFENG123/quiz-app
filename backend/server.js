@@ -144,6 +144,19 @@ async function startServer() {
     saveNow();
   }
 
+  // 尝试从 GitHub 恢复学习数据
+  try {
+    const { loadFromGitHub, importData } = require('./utils/sync');
+    const cloudData = await loadFromGitHub();
+    if (cloudData) {
+      const result = importData(db, cloudData);
+      console.log(`[同步] 已恢复学习数据: ${result.studyRecords}条记录, ${result.wrongQuestions}道错题, ${result.favorites}个收藏`);
+      saveNow();
+    }
+  } catch (e) {
+    console.log('[同步] 数据恢复跳过:', e.message);
+  }
+
   const app = express();
   const PORT = process.env.PORT || 8080;
 
@@ -168,6 +181,28 @@ async function startServer() {
   app.use('/api/wrong', require('./routes/wrong'));
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api/database', require('./routes/database'));
+
+  // ============ 数据同步路由 ============
+  const { exportData, importData, saveToGitHub } = require('./utils/sync');
+
+  app.post('/api/sync', async (req, res) => {
+    try {
+      const data = exportData(db);
+      await saveToGitHub(data);
+      res.json({ success: true, message: '同步成功', count: data.count });
+    } catch (e) {
+      res.json({ success: false, message: e.message });
+    }
+  });
+
+  app.get('/api/sync/status', (req, res) => {
+    try {
+      const data = exportData(db);
+      res.json({ success: true, data: { count: data.count, updatedAt: data.updatedAt } });
+    } catch (e) {
+      res.json({ success: false, message: e.message });
+    }
+  });
 
   // SPA 回退
   if (process.env.NODE_ENV === 'production') {

@@ -201,6 +201,23 @@
             </div>
           </div>
 
+          <!-- 云端同步 -->
+          <div class="card border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-sm font-semibold text-gray-700">云端同步</h3>
+                <p class="text-xs text-gray-400 mt-1">
+                  <template v-if="syncSuccess">上次同步: {{ syncStatusText }}，记录{{ syncCount?.studyRecords || 0 }}条</template>
+                  <template v-else>将学习记录保存到 GitHub，重启后自动恢复</template>
+                </p>
+              </div>
+              <button class="btn-primary text-sm !px-3 !py-1.5 flex items-center gap-1" @click="syncToCloud" :disabled="syncing">
+                <font-awesome-icon icon="cloud-arrow-up" :spin="syncing" />
+                {{ syncing ? '同步中...' : '立即同步' }}
+              </button>
+            </div>
+          </div>
+
           <!-- 学习数据 -->
           <div class="card border border-gray-100">
             <div class="flex items-center justify-between">
@@ -802,6 +819,27 @@ async function loadDbInfo() {
     dbInfo.value = res.data || { tables: {} }
   } catch (e) { dbInfo.value = { tables: {} } } finally {
     dbInfoLoading.value = false
+  }
+}
+
+// 云端同步
+const syncing = ref(false)
+const syncSuccess = ref(false)
+const syncStatusText = ref('')
+const syncCount = ref(null)
+
+async function syncToCloud() {
+  syncing.value = true
+  try {
+    const res = await API.syncToCloud()
+    syncSuccess.value = true
+    syncStatusText.value = new Date().toLocaleString('zh-CN')
+    syncCount.value = res.count
+  } catch (e) {
+    syncSuccess.value = false
+    syncStatusText.value = '失败: ' + (e.response?.data?.message || e.message)
+  } finally {
+    syncing.value = false
   }
 }
 

@@ -522,6 +522,8 @@ async function submitUserAnswer(answer) {
 
   try {
     await API.submitAnswer({ question_id: q.id, user_answer: Array.isArray(answer) ? answer.join(',') : String(answer), mode: 'practice' })
+    // 后台同步到云端（静默）
+    API.syncToCloud().catch(() => {})
   } catch { /* 静默 */ }
 }
 

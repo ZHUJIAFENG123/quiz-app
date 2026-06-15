@@ -454,6 +454,8 @@ async function submitExam() {
         } catch { /* 跳过单题提交失败 */ }
       }
     }
+    // 后台同步到云端（静默）
+    API.syncToCloud().catch(() => {})
   } finally {
     submitting.value = false
     router.push(`/exam/result/${sessionId.value}`)

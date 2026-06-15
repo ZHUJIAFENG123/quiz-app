@@ -87,4 +87,8 @@ export default {
   restoreDatabase: (backupFile) => api.post('/database/restore', { backupFile }),
   getBackups: () => api.get('/database/backups'),
   getDatabaseInfo: () => api.get('/database/info'),
+
+  // 数据同步
+  syncToCloud: () => api.post('/sync'),
+  getSyncStatus: () => api.get('/sync/status'),
 }
