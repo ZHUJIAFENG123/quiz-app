@@ -94,7 +94,6 @@ async function startServer() {
     CREATE INDEX IF NOT EXISTS idx_study_records_created ON study_records(created_at);
     CREATE INDEX IF NOT EXISTS idx_wrong_questions_question ON wrong_questions(question_id);
     CREATE INDEX IF NOT EXISTS idx_favorites_question ON favorites(question_id);
-    CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id);
   `);
 
   // 迁移：为旧表添加 user_id 列
@@ -104,9 +103,10 @@ async function startServer() {
   addColumn('study_records');
   addColumn('wrong_questions');
   addColumn('favorites');
-  // 错误表中的唯一约束需要改为 question_id + user_id
+  // 补充索引（在确保列存在后创建）
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_study_records_user ON study_records(user_id)'); } catch {}
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_wrong_questions_user ON wrong_questions(user_id)'); } catch {}
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id)'); } catch {}
   
   saveNow();
   console.log('数据库表结构初始化完成');
