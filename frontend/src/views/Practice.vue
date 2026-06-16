@@ -1,7 +1,19 @@
 <template>
   <div class="max-w-lg mx-auto px-3 sm:px-4 py-4 pb-6">
-    <!-- 筛选栏 -->
-    <div class="card mb-4 p-3">
+    <!-- 错题模式标题 -->
+    <div v-if="isWrongMode" class="card mb-4 p-3 bg-orange-50 border-orange-200">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <font-awesome-icon icon="circle-xmark" class="text-orange-500" />
+          <span class="font-medium text-orange-700">重做错题</span>
+          <span class="text-xs text-orange-500">共 {{ totalCount }} 道</span>
+        </div>
+        <router-link to="/wrong" class="text-xs text-orange-500 hover:text-orange-700">返回错题本</router-link>
+      </div>
+    </div>
+
+    <!-- 筛选栏（错题模式隐藏） -->
+    <div v-if="!isWrongMode" class="card mb-4 p-3">
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <select v-model="filters.subject_id" class="input text-sm" @change="onSubjectChange">
           <option :value="null">全部科目</option>
@@ -214,6 +226,9 @@ import API from '../api'
 
 const route = useRoute()
 
+// 错题模式
+const isWrongMode = computed(() => route.query.source === 'wrong')
+
 // 筛选条件
 const filters = reactive({
   subject_id: null,
@@ -251,7 +266,10 @@ onMounted(async () => {
   if (route.query.mode) filters.mode = route.query.mode
 
   // 如果路由带有筛选参数，自动开始
-  if (route.query.subject_id || route.query.chapter_id || route.query.type) {
+  // 错题模式自动开始
+  if (route.query.source === 'wrong') {
+    await startPractice()
+  } else if (route.query.subject_id || route.query.chapter_id || route.query.type) {
     if (route.query.mode) filters.mode = route.query.mode
     await onSubjectChange()
     await startPractice()
@@ -286,14 +304,19 @@ async function startPractice() {
   
   loading.value = true
   try {
-    const data = await API.getPracticeQuestions({
-      page: 1,
-      pageSize: 20,
-      subject_id: filters.subject_id || undefined,
-      chapter_id: filters.chapter_id || undefined,
-      type: filters.type || undefined,
-      mode: filters.mode
-    })
+    let data
+    if (isWrongMode.value) {
+      data = await API.getWrongQuestions({ page: 1, pageSize: 20 })
+    } else {
+      data = await API.getPracticeQuestions({
+        page: 1,
+        pageSize: 20,
+        subject_id: filters.subject_id || undefined,
+        chapter_id: filters.chapter_id || undefined,
+        type: filters.type || undefined,
+        mode: filters.mode
+      })
+    }
     // 处理返回数据 - API已解包为 { list, total, page, ... }
     if (Array.isArray(data)) {
       questions.value = data
@@ -316,14 +339,19 @@ async function loadMore() {
   loadingMore.value = true
   currentPage.value++
   try {
-    const data = await API.getPracticeQuestions({
-      page: currentPage.value,
-      pageSize: 20,
-      subject_id: filters.subject_id || undefined,
-      chapter_id: filters.chapter_id || undefined,
-      type: filters.type || undefined,
-      mode: filters.mode
-    })
+    let data
+    if (isWrongMode.value) {
+      data = await API.getWrongQuestions({ page: currentPage.value, pageSize: 20 })
+    } else {
+      data = await API.getPracticeQuestions({
+        page: currentPage.value,
+        pageSize: 20,
+        subject_id: filters.subject_id || undefined,
+        chapter_id: filters.chapter_id || undefined,
+        type: filters.type || undefined,
+        mode: filters.mode
+      })
+    }
     const newData = Array.isArray(data) ? data : (data?.list || [])
     if (newData.length === 0) {
       allDone.value = true
