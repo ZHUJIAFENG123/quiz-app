@@ -7,6 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 router.post('/generate', (req, res) => {
   try {
     const { subject_id, chapter_id, type, count = 50, duration = 45 } = req.body;
+    const userId = req.userId || 0;
     
     let where = ['1=1'];
     let params = [];
@@ -19,7 +20,7 @@ router.post('/generate', (req, res) => {
     const total = db.prepare(`SELECT COUNT(*) as count FROM questions WHERE ${whereClause}`).get(...params);
     
     if (total.count === 0) {
-      return res.status(400).json({ success: false, message: '没有符合条件符合条件的题目' });
+      return res.status(400).json({ success: false, message: '没有符合条件的题目' });
     }
     
     const examCount = Math.min(parseInt(count), total.count);
@@ -31,53 +32,19 @@ router.post('/generate', (req, res) => {
       ORDER BY RANDOM() LIMIT ?
     `).all(...params, examCount);
     
-    // 创建考试会话
-    db.prepare('INSERT INTO study_records (question_id, user_answer, is_correct, mode, exam_session_id) VALUES (?, ?, ?, ?, ?)');
-    
     res.json({
       success: true,
       data: {
         session_id: sessionId,
         questions: questions.map(q => ({
           ...q,
-          answer: undefined,  // 考试中隐藏正确答案
+          answer: undefined,
           analysis: undefined
         })),
         total: examCount,
-        duration: parseInt(duration) // 考试时长（分钟）
+        duration: parseInt(duration)
       }
     });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// 获取考试题目详情
-router.get('/:sessionId/question/:index', (req, res) => {
-  try {
-    const { sessionId, index } = req.params;
-    
-    const records = db.prepare('SELECT question_id FROM study_records WHERE exam_session_id = ? AND mode = ? ORDER BY id ASC')
-      .all(sessionId, 'exam');
-    
-    if (index < 0 || index >= records.length) {
-      return res.status(404).json({ success: false, message: '题目不存在' });
-    }
-    
-    const questionId = records[index].question_id;
-    const question = db.prepare(`
-      SELECT q.*, c.name as chapter_name, s.name as subject_name
-      FROM questions q
-      LEFT JOIN chapters c ON q.chapter_id = c.id
-      LEFT JOIN subjects s ON q.subject_id = s.id
-      WHERE q.id = ?
-    `).get(questionId);
-    
-    // 考试中隐藏答案和解析
-    question.answer = undefined;
-    question.analysis = undefined;
-    
-    res.json({ success: true, data: question });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -88,28 +55,30 @@ router.post('/:sessionId/answer', (req, res) => {
   try {
     const { sessionId } = req.params;
     const { question_id, user_answer } = req.body;
+    const userId = req.userId || 0;
     
     const question = db.prepare('SELECT * FROM questions WHERE id = ?').get(question_id);
     if (!question) return res.status(404).json({ success: false, message: '题目不存在' });
     
     let isCorrect = false;
     if (question.type === '多选') {
-      const correctAnswers = question.answer.split(',').map(a => a.trim()).sort().join('');
+      const corrects = question.answer.split(',').map(a => a.trim()).sort().join('');
       const userAnswers = user_answer.split(',').map(a => a.trim()).sort().join('');
-      isCorrect = correctAnswers === userAnswers;
+      isCorrect = corrects === userAnswers;
     } else {
       isCorrect = question.answer.trim() === user_answer.trim();
     }
     
-    db.prepare('INSERT INTO study_records (question_id, user_answer, is_correct, mode, exam_session_id) VALUES (?, ?, ?, ?, ?)')
-      .run(question_id, user_answer, isCorrect ? 1 : 0, 'exam', sessionId);
+    db.prepare('INSERT INTO study_records (question_id, user_answer, is_correct, mode, exam_session_id, user_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(question_id, user_answer, isCorrect ? 1 : 0, 'exam', sessionId, userId);
     
     if (!isCorrect) {
-      const existing = db.prepare('SELECT * FROM wrong_questions WHERE question_id = ?').get(question_id);
+      const existing = db.prepare('SELECT * FROM wrong_questions WHERE question_id = ? AND user_id = ?').get(question_id, userId);
       if (existing) {
-        db.prepare('UPDATE wrong_questions SET wrong_count = wrong_count + 1, last_wrong_at = CURRENT_TIMESTAMP WHERE question_id = ?').run(question_id);
+        db.prepare('UPDATE wrong_questions SET wrong_count = wrong_count + 1, last_wrong_at = CURRENT_TIMESTAMP WHERE question_id = ? AND user_id = ?')
+          .run(question_id, userId);
       } else {
-        db.prepare('INSERT INTO wrong_questions (question_id) VALUES (?)').run(question_id);
+        db.prepare('INSERT INTO wrong_questions (question_id, user_id) VALUES (?, ?)').run(question_id, userId);
       }
     }
     
@@ -123,6 +92,7 @@ router.post('/:sessionId/answer', (req, res) => {
 router.get('/:sessionId/result', (req, res) => {
   try {
     const { sessionId } = req.params;
+    const userId = req.userId || 0;
     
     const records = db.prepare(`
       SELECT sr.*, q.content, q.answer as correct_answer, q.analysis, q.type, q.option_a, q.option_b, q.option_c, q.option_d,
@@ -131,15 +101,14 @@ router.get('/:sessionId/result', (req, res) => {
       LEFT JOIN questions q ON sr.question_id = q.id
       LEFT JOIN chapters c ON q.chapter_id = c.id
       LEFT JOIN subjects s ON q.subject_id = s.id
-      WHERE sr.exam_session_id = ? AND sr.mode = 'exam'
+      WHERE sr.exam_session_id = ? AND sr.mode = 'exam' AND sr.user_id = ?
       ORDER BY sr.id ASC
-    `).all(sessionId);
+    `).all(sessionId, userId);
     
     const total = records.length;
     const correct = records.filter(r => r.is_correct).length;
     const wrong = total - correct;
     
-    // 按章节统计（转为数组格式）
     const chapterStatsMap = {};
     records.forEach(r => {
       const key = r.chapter_name || '未知';

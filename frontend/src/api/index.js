@@ -6,6 +6,15 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 })
 
+// 请求拦截器：自动附带 Token
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('quiz_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 // 响应拦截器：自动提取 { success, data } 中的 data
 api.interceptors.response.use(
   response => {
@@ -91,4 +100,13 @@ export default {
   // 数据同步
   syncToCloud: () => api.post('/sync'),
   getSyncStatus: () => api.get('/sync/status'),
+
+  // 认证
+  login: (username, password) => api.post('/auth/login', { username, password }),
+  register: (username, password, nickname) => api.post('/auth/register', { username, password, nickname }),
+  getMe: () => api.get('/auth/me'),
+  logout: () => {
+    localStorage.removeItem('quiz_token')
+    localStorage.removeItem('quiz_user')
+  },
 }

@@ -27,6 +27,8 @@ import WrongBook from './views/WrongBook.vue'
 import Favorites from './views/Favorites.vue'
 import Stats from './views/Stats.vue'
 import Admin from './views/Admin.vue'
+import Login from './views/Login.vue'
+import Register from './views/Register.vue'
 import './style.css'
 
 // Font Awesome 图标注册
@@ -55,6 +57,8 @@ const routes = [
   { path: '/favorites', name: 'Favorites', component: Favorites, meta: { title: '收藏夹' } },
   { path: '/stats', name: 'Stats', component: Stats, meta: { title: '学习统计' } },
   { path: '/admin', name: 'Admin', component: Admin, meta: { title: '后台管理' } },
+  { path: '/login', name: 'Login', component: Login, meta: { title: '登录' } },
+  { path: '/register', name: 'Register', component: Register, meta: { title: '注册' } },
 ]
 
 const router = createRouter({
@@ -64,6 +68,16 @@ const router = createRouter({
     return { top: 0 }
   }
 })
+
+// 登录状态检查
+function getUserFromStorage() {
+  try {
+    const token = localStorage.getItem('quiz_token')
+    const user = localStorage.getItem('quiz_user')
+    if (token && user) return JSON.parse(user)
+  } catch {}
+  return null
+}
 
 // 页面标题更新
 router.afterEach((to) => {

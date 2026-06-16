@@ -13,6 +13,14 @@ async function startServer() {
   
   // 初始化数据库表结构
   db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      nickname TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS subjects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
@@ -86,7 +94,19 @@ async function startServer() {
     CREATE INDEX IF NOT EXISTS idx_study_records_created ON study_records(created_at);
     CREATE INDEX IF NOT EXISTS idx_wrong_questions_question ON wrong_questions(question_id);
     CREATE INDEX IF NOT EXISTS idx_favorites_question ON favorites(question_id);
+    CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id);
   `);
+
+  // 迁移：为旧表添加 user_id 列
+  const addColumn = (table) => {
+    try { db.exec(`ALTER TABLE ${table} ADD COLUMN user_id INTEGER DEFAULT 0`); } catch {}
+  };
+  addColumn('study_records');
+  addColumn('wrong_questions');
+  addColumn('favorites');
+  // 错误表中的唯一约束需要改为 question_id + user_id
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_study_records_user ON study_records(user_id)'); } catch {}
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_wrong_questions_user ON wrong_questions(user_id)'); } catch {}
   
   saveNow();
   console.log('数据库表结构初始化完成');
@@ -165,12 +185,17 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+  // JWT 认证中间件（自动解析 token 到 req.userId）
+  const { authMiddleware } = require('./middleware/auth');
+  app.use('/api', authMiddleware);
+
   // 生产环境下提供前端构建产物
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, '..', 'frontend', 'dist')));
   }
 
   // ============ API 路由 ============
+  app.use('/api/auth', require('./routes/auth'));
   app.use('/api/subjects', require('./routes/subjects'));
   app.use('/api/chapters', require('./routes/chapters'));
   app.use('/api/questions', require('./routes/questions'));

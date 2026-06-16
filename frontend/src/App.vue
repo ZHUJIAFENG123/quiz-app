@@ -2,6 +2,25 @@
   <div class="min-h-screen bg-gray-50">
     <!-- 后台管理不显示底部导航 -->
     <div v-if="!isAdminRoute" class="pb-16">
+      <!-- 顶部用户栏 -->
+      <div class="bg-white border-b border-gray-100 px-4 py-2 flex items-center justify-between">
+        <router-link to="/" class="text-sm font-semibold text-primary-600">刷题宝典</router-link>
+        <div class="flex items-center gap-2">
+          <template v-if="currentUser">
+            <span class="text-xs text-gray-500">{{ currentUser.nickname || currentUser.username }}</span>
+            <button @click="doLogout" class="text-xs text-gray-400 hover:text-red-500">退出</button>
+          </template>
+          <template v-else>
+            <router-link to="/login" class="text-xs text-gray-500 hover:text-primary-600">登录</router-link>
+            <span class="text-gray-300 text-xs">|</span>
+            <router-link to="/register" class="text-xs text-gray-500 hover:text-primary-600">注册</router-link>
+          </template>
+          <router-link to="/stats" class="text-gray-400 hover:text-primary-600 ml-1">
+            <font-awesome-icon icon="chart-bar" class="text-sm" />
+          </router-link>
+        </div>
+      </div>
+      
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />
@@ -45,11 +64,36 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const isAdminRoute = computed(() => route.path.startsWith('/admin'))
+
+const currentUser = ref(getUser())
+
+function getUser() {
+  try {
+    const u = localStorage.getItem('quiz_user')
+    return u ? JSON.parse(u) : null
+  } catch { return null }
+}
+
+// 更新用户信息的辅助函数
+function checkUser() { currentUser.value = getUser() }
+window.addEventListener('storage', checkUser)
+
+watch(() => route.path, () => {
+  currentUser.value = getUser()
+})
+
+function doLogout() {
+  localStorage.removeItem('quiz_token')
+  localStorage.removeItem('quiz_user')
+  currentUser.value = null
+  router.push('/')
+}
 </script>
 
 <style scoped>
