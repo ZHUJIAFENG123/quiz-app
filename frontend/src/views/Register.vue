@@ -2,7 +2,7 @@
   <div class="min-h-screen bg-gray-50 flex items-center justify-center px-4">
     <div class="w-full max-w-sm">
       <div class="text-center mb-8">
-        <img src="/logo.png" alt="logo" class="w-16 h-16 rounded-2xl mx-auto mb-3 shadow-sm" />
+        <img src="/mascot.png" alt="小助手" class="w-16 h-16 rounded-full object-cover mx-auto mb-3 shadow-md" />
         <h1 class="text-2xl font-bold text-primary-600">刷题宝典</h1>
         <p class="text-sm text-gray-500 mt-1">创建账号开始学习</p>
       </div>

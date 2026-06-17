@@ -2,7 +2,7 @@
   <div class="max-w-2xl mx-auto px-4 py-6">
     <!-- 用户信息卡片 -->
     <div class="card mb-6 text-center">
-      <img src="/logo.png" alt="avatar" class="w-16 h-16 rounded-2xl mx-auto mb-3 shadow-sm" />
+      <img src="/mascot.png" alt="小助手" class="w-16 h-16 rounded-full object-cover mx-auto mb-3 shadow-md" />
       <h2 class="text-lg font-bold text-gray-800">{{ user?.nickname || user?.username || '未登录' }}</h2>
       <p class="text-xs text-gray-400 mt-1">@{{ user?.username || '--' }}</p>
       <p class="text-xs text-gray-400">注册于 {{ formatDate(user?.created_at) }}</p>

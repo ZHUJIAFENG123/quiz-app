@@ -122,8 +122,8 @@
     </div>
 
     <!-- 空状态 -->
-    <div v-else class="text-center py-20">
-      <font-awesome-icon icon="heart" class="text-6xl text-gray-200 mb-4" />
+    <div v-else class="text-center py-16">
+      <img src="/mascot.png" alt="小助手" class="w-20 h-20 rounded-full object-cover mx-auto mb-3 opacity-80" />
       <p class="text-lg text-gray-400 font-medium">还没有收藏题目</p>
       <p class="text-sm text-gray-300 mt-1">练习或考试中可以点击收藏哦</p>
     </div>

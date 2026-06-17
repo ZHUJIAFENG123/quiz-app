@@ -152,8 +152,8 @@
     </div>
 
     <!-- 空状态 -->
-    <div v-else class="text-center py-20">
-      <font-awesome-icon icon="circle-check" class="text-6xl text-green-300 mb-4" />
+    <div v-else class="text-center py-16">
+      <img src="/mascot.png" alt="小助手" class="w-20 h-20 rounded-full object-cover mx-auto mb-3 opacity-80" />
       <p class="text-lg text-gray-500 font-medium">暂无错题，继续保持！</p>
       <p class="text-sm text-gray-400 mt-1">去练习或考试，答错的题目会出现在这里</p>
     </div>

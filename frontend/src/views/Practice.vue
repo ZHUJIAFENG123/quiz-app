@@ -48,13 +48,13 @@
 
     <!-- 加载状态 -->
     <div v-if="loading && questions.length === 0" class="card text-center py-12 text-gray-400">
-      <font-awesome-icon icon="refresh" spin class="text-3xl mb-3 text-primary-600" />
-      <p>加载题目中...</p>
+      <img src="/mascot.png" alt="小助手" class="w-20 h-20 rounded-full object-cover mx-auto mb-3 opacity-80 animate-bounce" />
+      <p>小助手正在准备题目...</p>
     </div>
 
     <!-- 空状态 -->
     <div v-else-if="!loading && questions.length === 0 && hasStarted" class="card text-center py-12 text-gray-400">
-      <font-awesome-icon icon="circle-question" class="text-4xl mb-3 opacity-30" />
+      <img src="/mascot.png" alt="小助手" class="w-20 h-20 rounded-full object-cover mx-auto mb-3 opacity-60" />
       <p>没有符合条件的题目</p>
       <p class="text-sm mt-1">请尝试调整筛选条件</p>
     </div>
@@ -209,13 +209,13 @@
 
     <!-- 初始引导 -->
     <div v-if="!hasStarted && !loading" class="card text-center py-12 text-gray-400">
-      <font-awesome-icon icon="pen-to-square" class="text-4xl mb-3 opacity-30" />
-      <p class="text-sm">选择筛选条件后，点击"开始练习"</p>
+      <img src="/mascot.png" alt="小助手" class="w-20 h-20 rounded-full object-cover mx-auto mb-3 opacity-80" />
+      <p class="text-sm text-gray-500">选好科目和题型，小助手带你刷题！</p>
     </div>
 
     <!-- 全部完成 -->
     <div v-if="allDone" class="card text-center py-12">
-      <font-awesome-icon icon="trophy" class="text-5xl text-yellow-500 mb-3" />
+      <img src="/mascot.png" alt="小助手" class="w-20 h-20 rounded-full object-cover mx-auto mb-3 shadow-md" />
       <p class="text-lg font-medium text-gray-800">恭喜！已完成所有题目</p>
       <p class="text-sm text-gray-400 mt-1">正确率 {{ correctRate }}%</p>
       <div class="flex justify-center gap-3 mt-4">
