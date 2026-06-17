@@ -4,7 +4,10 @@
     <div v-if="!isAdminRoute" class="pb-16">
       <!-- 顶部用户栏 -->
       <div class="bg-white border-b border-gray-100 px-4 py-2 flex items-center justify-between">
-        <router-link to="/" class="text-sm font-semibold text-primary-600">刷题宝典</router-link>
+        <router-link to="/" class="flex items-center gap-2">
+          <img src="/logo.png" alt="logo" class="w-6 h-6 rounded" />
+          <span class="text-sm font-semibold text-primary-600">刷题宝典</span>
+        </router-link>
         <div class="flex items-center gap-2">
           <template v-if="currentUser">
             <span class="text-xs text-gray-500">{{ currentUser.nickname || currentUser.username }}</span>
