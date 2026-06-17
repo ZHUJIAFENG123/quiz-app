@@ -3,11 +3,11 @@ const router = express.Router();
 const db = require('../config/db');
 const https = require('https');
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
-const DEEPSEEK_URL = process.env.DEEPSEEK_URL || 'api.deepseek.com';
-const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
-const MAX_TOKENS = Number(process.env.AI_MAX_TOKENS || 900);
-const TEMPERATURE = Number(process.env.AI_TEMPERATURE || 0.55);
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-4bccc715caed408aab0048dde50c44c8';
+const DEEPSEEK_URL = 'api.deepseek.com';
+const MODEL = 'deepseek-chat';
+const MAX_TOKENS = 800;
+const TEMPERATURE = 0.7;
 
 const SYSTEM_PROMPT = `你是一个专业、耐心、务实的刷题备考助手，服务于“公共基础知识”和“专业知识”题库。
 
