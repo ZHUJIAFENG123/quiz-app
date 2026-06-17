@@ -40,7 +40,7 @@
           >随机</button>
         </div>
       </div>
-      <button class="btn-primary w-full mt-2 text-sm" @click="startPractice" :disabled="loading">
+      <button class="btn-primary w-full mt-2 text-sm" @click="startFresh" :disabled="loading">
         <font-awesome-icon icon="search" class="mr-1" />
         {{ questions.length ? '重新加载' : '开始练习' }}
       </button>
@@ -99,6 +99,13 @@
             <span class="text-sm sm:text-base text-left">{{ opt.content }}</span>
             <font-awesome-icon v-if="answered && opt.key === currentQuestion.answer" icon="check" class="ml-auto text-green-500" />
             <font-awesome-icon v-else-if="answered && opt.key === userAnswers[currentQuestion.id] && opt.key !== currentQuestion.answer" icon="xmark" class="ml-auto text-red-500" />
+          </button>
+          <button
+            v-if="!answered && singleTempSelected !== null"
+            @click="confirmSingle"
+            class="btn-primary w-full mt-3 text-sm"
+          >
+            确认选择
           </button>
         </template>
 
@@ -212,7 +219,7 @@
       <p class="text-lg font-medium text-gray-800">恭喜！已完成所有题目</p>
       <p class="text-sm text-gray-400 mt-1">正确率 {{ correctRate }}%</p>
       <div class="flex justify-center gap-3 mt-4">
-        <button @click="startPractice" class="btn-outline text-sm">重新开始</button>
+        <button @click="startFresh" class="btn-outline text-sm">重新开始</button>
         <router-link to="/" class="btn-primary text-sm">返回首页</router-link>
       </div>
     </div>
@@ -251,15 +258,29 @@ const allDone = ref(false)
 const userAnswers = reactive({})
 const answerResults = reactive({})
 
-// 多选题临时选择
+// 多选临时选择
 const multiSelectTemp = reactive({})
+
+// 单选临时选择（确认后才提交）
+const singleTempSelected = ref(null)
 
 onMounted(async () => {
   try {
     subjects.value = await API.getSubjects() || []
   } catch { /* 静默 */ }
 
-  // 从路由参数恢复筛选
+  // 尝试恢复练习进度
+  const saved = loadPracticeState()
+  if (saved && !route.query.source) {
+    Object.assign(filters, saved.filters)
+    if (saved.subject_id) filters.subject_id = saved.subject_id
+    if (saved.chapter_id) filters.chapter_id = saved.chapter_id
+    if (saved.type) filters.type = saved.type
+    if (saved.mode) filters.mode = saved.mode
+    if (filters.subject_id) await onSubjectChange()
+    await startPractice(saved.currentIndex || 0)
+    return
+  }
   if (route.query.subject_id) filters.subject_id = Number(route.query.subject_id)
   if (route.query.chapter_id) filters.chapter_id = Number(route.query.chapter_id)
   if (route.query.type) filters.type = route.query.type
@@ -292,7 +313,7 @@ async function onSubjectChange() {
   }
 }
 
-async function startPractice() {
+async function startPractice(startIndex = 0) {
   hasStarted.value = true
   allDone.value = false
   currentPage.value = 1
@@ -301,6 +322,7 @@ async function startPractice() {
   Object.keys(userAnswers).forEach(k => delete userAnswers[k])
   Object.keys(answerResults).forEach(k => delete answerResults[k])
   Object.keys(multiSelectTemp).forEach(k => delete multiSelectTemp[k])
+  singleTempSelected.value = null
   
   loading.value = true
   try {
@@ -308,14 +330,17 @@ async function startPractice() {
     if (isWrongMode.value) {
       data = await API.getWrongQuestions({ page: 1, pageSize: 20 })
     } else {
+      // 如果指定了起始位置，加载多页直到覆盖
+      const pageForStart = Math.floor(startIndex / 20) + 1
       data = await API.getPracticeQuestions({
-        page: 1,
+        page: pageForStart,
         pageSize: 20,
         subject_id: filters.subject_id || undefined,
         chapter_id: filters.chapter_id || undefined,
         type: filters.type || undefined,
         mode: filters.mode
       })
+      currentPage.value = pageForStart
     }
     // 处理返回数据 - API已解包为 { list, total, page, ... }
     if (Array.isArray(data)) {
@@ -328,6 +353,10 @@ async function startPractice() {
       questions.value = []
       totalCount.value = 0
     }
+    if (startIndex > 0 && questions.value.length > 0) {
+      currentIndex.value = Math.min(startIndex % 20, questions.value.length - 1)
+    }
+    savePracticeState()
   } catch {
     questions.value = []
   } finally {
@@ -363,6 +392,39 @@ async function loadMore() {
   } finally {
     loadingMore.value = false
   }
+}
+
+// ===== 练习进度记忆 =====
+const PRACTICE_KEY = 'quiz_practice_state'
+
+function savePracticeState() {
+  if (isWrongMode.value) return // 错题模式不保存
+  try {
+    const state = {
+      filters: JSON.parse(JSON.stringify(filters)),
+      currentPage: currentPage.value,
+      currentIndex: currentIndex.value,
+      questionIds: questions.value.map(q => q.id)
+    }
+    localStorage.setItem(PRACTICE_KEY, JSON.stringify(state))
+  } catch { /* quota exceeded */ }
+}
+
+function loadPracticeState() {
+  try {
+    const raw = localStorage.getItem(PRACTICE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch { return null }
+}
+
+function clearPracticeState() {
+  localStorage.removeItem(PRACTICE_KEY)
+}
+
+function startFresh() {
+  clearPracticeState()
+  startPractice(0)
 }
 
 const currentQuestion = computed(() => questions.value[currentIndex.value] || null)
@@ -435,6 +497,7 @@ function optionClass(key, isMulti) {
   }
   
   if (isMulti && isMultiSelected(key)) return base + ' border-primary-500 bg-primary-50'
+  if (!isMulti && singleTempSelected.value === key) return base + ' border-primary-500 bg-primary-50'
   if (!isMulti && String(userAnswers[currentQuestion.value.id]) === String(key)) return base + ' border-primary-500 bg-primary-50'
   return base + ' border-gray-200 hover:border-primary-300 hover:bg-gray-50'
 }
@@ -455,6 +518,7 @@ function optionIndicatorClass(key, isMulti) {
   }
   
   if (isMulti && isMultiSelected(key)) return 'border-primary-500 bg-primary-500 text-white'
+  if (!isMulti && singleTempSelected.value === key) return 'border-primary-500 bg-primary-500 text-white'
   if (!isMulti && String(userAnswers[currentQuestion.value.id]) === String(key)) return 'border-primary-500 bg-primary-500 text-white'
   return 'border-gray-300 text-gray-500'
 }
@@ -473,10 +537,22 @@ function judgeBtnClass(val) {
   return base + ' border-gray-200 hover:border-primary-300 text-gray-500'
 }
 
-// 单选选择
+// 单选选择（仅高亮，不提交）
 function selectSingle(key) {
   if (answered.value) return
+  if (singleTempSelected.value === key) {
+    singleTempSelected.value = null
+    return
+  }
+  singleTempSelected.value = key
+}
+
+// 确认单选
+function confirmSingle() {
+  if (answered.value || singleTempSelected.value === null) return
+  const key = singleTempSelected.value
   userAnswers[currentQuestion.value.id] = key
+  singleTempSelected.value = null
   submitUserAnswer(key)
 }
 
@@ -570,30 +646,33 @@ function prevQuestion() {
   if (currentIndex.value > 0) {
     currentIndex.value--
     Object.keys(multiSelectTemp).forEach(k => delete multiSelectTemp[k])
+    singleTempSelected.value = null
+    savePracticeState()
     return
   }
-  // 加载前一页（简单处理，仅支持向前翻页当前页）
   if (currentPage.value > 1) {
-    // 对于简易实现，仅支持在当前已加载题目中回退
     // 不实现跨页回退 - 保持在第一题
   }
 }
 
 async function nextQuestion() {
+  singleTempSelected.value = null
   if (currentIndex.value < questions.value.length - 1) {
     currentIndex.value++
     Object.keys(multiSelectTemp).forEach(k => delete multiSelectTemp[k])
+    savePracticeState()
     return
   }
-  // 检查是否还有更多
   if (totalCount.value > questions.value.length) {
     await loadMore()
     if (questions.value.length > currentIndex.value) {
       currentIndex.value++
       Object.keys(multiSelectTemp).forEach(k => delete multiSelectTemp[k])
+      savePracticeState()
     }
   } else {
     allDone.value = true
+    clearPracticeState()
   }
 }
 </script>
