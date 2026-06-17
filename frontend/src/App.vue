@@ -10,7 +10,7 @@
         </router-link>
         <div class="flex items-center gap-2">
           <template v-if="currentUser">
-            <span class="text-xs text-gray-500">{{ currentUser.nickname || currentUser.username }}</span>
+            <router-link to="/profile" class="text-xs text-gray-500 hover:text-primary-600">{{ currentUser.nickname || currentUser.username }}</router-link>
             <button @click="doLogout" class="text-xs text-gray-400 hover:text-red-500">退出</button>
           </template>
           <template v-else>
@@ -18,8 +18,8 @@
             <span class="text-gray-300 text-xs">|</span>
             <router-link to="/register" class="text-xs text-gray-500 hover:text-primary-600">注册</router-link>
           </template>
-          <router-link to="/stats" class="text-gray-400 hover:text-primary-600 ml-1">
-            <font-awesome-icon icon="chart-bar" class="text-sm" />
+          <router-link to="/profile" class="text-gray-400 hover:text-primary-600 ml-1">
+            <font-awesome-icon icon="user" class="text-sm" />
           </router-link>
         </div>
       </div>
@@ -95,7 +95,7 @@ function doLogout() {
   localStorage.removeItem('quiz_token')
   localStorage.removeItem('quiz_user')
   currentUser.value = null
-  router.push('/')
+  window.location.href = '/'
 }
 </script>
 

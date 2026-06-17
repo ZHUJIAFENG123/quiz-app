@@ -108,5 +108,6 @@ export default {
   logout: () => {
     localStorage.removeItem('quiz_token')
     localStorage.removeItem('quiz_user')
+    window.location.href = '/'
   },
 }
