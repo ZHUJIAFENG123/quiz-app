@@ -181,6 +181,28 @@
             <span class="font-medium text-gray-700">解析：</span>{{ currentQuestion.analysis }}
           </p>
         </div>
+        <!-- AI 深度解析 -->
+        <div class="mt-3 pt-3 border-t border-gray-100">
+          <button
+            v-if="!aiContent && !aiLoading"
+            @click="getAIAnalysis"
+            class="flex items-center gap-1.5 text-xs text-yellow-600 hover:text-yellow-700 font-medium"
+          >
+            <font-awesome-icon icon="lightbulb" />
+            AI 深度解析
+          </button>
+          <div v-if="aiLoading" class="flex items-center gap-2 text-xs text-gray-400">
+            <div class="animate-spin w-3 h-3 border border-yellow-500 border-t-transparent rounded-full"></div>
+            AI正在分析...
+          </div>
+          <div v-if="aiContent" class="bg-yellow-50 rounded-lg p-3 mt-2">
+            <div class="flex items-center gap-1.5 text-xs text-yellow-700 font-medium mb-1">
+              <font-awesome-icon icon="lightbulb" class="text-yellow-500" />
+              AI 解析
+            </div>
+            <p class="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{{ aiContent }}</p>
+          </div>
+        </div>
       </div>
 
       <!-- 底部导航 -->
@@ -629,6 +651,27 @@ async function submitUserAnswer(answer) {
     // 后台同步到云端（静默）
     API.syncToCloud().catch(() => {})
   } catch { /* 静默 */ }
+}
+
+// AI 解析
+const aiLoading = ref(false)
+const aiContent = ref('')
+const aiQuestionId = ref(null)
+
+async function getAIAnalysis() {
+  const q = currentQuestion.value
+  if (!q || aiLoading.value) return
+  aiLoading.value = true
+  aiContent.value = ''
+  aiQuestionId.value = q.id
+  try {
+    const res = await API.aiAnalyze(q.id)
+    if (aiQuestionId.value === q.id) aiContent.value = res.content
+  } catch {
+    if (aiQuestionId.value === q.id) aiContent.value = 'AI解析暂时不可用，请稍后再试'
+  } finally {
+    aiLoading.value = false
+  }
 }
 
 // 收藏切换

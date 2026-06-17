@@ -107,6 +107,18 @@ async function startServer() {
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_study_records_user ON study_records(user_id)'); } catch {}
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_wrong_questions_user ON wrong_questions(user_id)'); } catch {}
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_favorites_user ON favorites(user_id)'); } catch {}
+
+  // AI 缓存表（避免重复调用API）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ai_cache (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      question_id INTEGER,
+      type TEXT NOT NULL DEFAULT 'analyze',
+      content TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(question_id, type)
+    );
+  `);
   
   saveNow();
   console.log('数据库表结构初始化完成');
@@ -205,6 +217,7 @@ async function startServer() {
   app.use('/api/favorites', require('./routes/favorites'));
   app.use('/api/wrong', require('./routes/wrong'));
   app.use('/api/admin', require('./routes/admin'));
+  app.use('/api/ai', require('./routes/ai'));
   app.use('/api/database', require('./routes/database'));
 
   // ============ 数据同步路由 ============

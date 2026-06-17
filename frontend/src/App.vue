@@ -61,6 +61,10 @@
           <font-awesome-icon icon="heart" class="text-lg" />
           <span class="text-xs mt-0.5">收藏</span>
         </router-link>
+        <router-link to="/ai" class="nav-item" active-class="text-primary-600">
+          <font-awesome-icon icon="lightbulb" class="text-lg" />
+          <span class="text-xs mt-0.5">AI助手</span>
+        </router-link>
       </div>
     </nav>
   </div>

@@ -103,6 +103,12 @@ export default {
 
   // 认证
   login: (username, password) => api.post('/auth/login', { username, password }),
+
+  // AI
+  aiAnalyze: (questionId) => api.post('/ai/analyze', { question_id: questionId }),
+  aiDiagnose: () => api.post('/ai/diagnose'),
+  aiChat: (message, history) => api.post('/ai/chat', { message, history }),
+
   register: (username, password, nickname) => api.post('/auth/register', { username, password, nickname }),
   getMe: () => api.get('/auth/me'),
   logout: () => {
