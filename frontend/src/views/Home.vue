@@ -1,13 +1,9 @@
 <template>
   <div class="max-w-lg mx-auto px-4 py-6 space-y-6">
     <!-- 欢迎标题 -->
-    <div class="flex items-center gap-3 mb-2">
-      <img src="/mascot.png" alt="小助手" class="w-12 h-12 rounded-full object-cover shadow-sm" />
-      <div>
-        <h1 class="text-xl font-bold text-gray-800">刷题宝典</h1>
-        <p class="text-xs text-gray-400">小助手陪你一起刷题！</p>
-      </div>
-      <router-link to="/stats" class="ml-auto text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-gray-800">刷题宝典</h1>
+      <router-link to="/stats" class="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1">
         <font-awesome-icon icon="chart-line" />
         学习统计
       </router-link>
@@ -100,7 +96,7 @@
     <div>
       <h2 class="text-lg font-semibold text-gray-800 mb-3">题库浏览</h2>
       <div v-if="subjects.length === 0" class="card text-center text-gray-400 py-8">
-        <img src="/mascot.png" alt="小助手" class="w-16 h-16 rounded-full object-cover mx-auto mb-2 opacity-60" />
+        <font-awesome-icon icon="book" class="text-4xl mb-2 opacity-30" />
         <p>暂无科目数据</p>
       </div>
       <div v-for="subject in subjects" :key="subject.id" class="card mb-3 overflow-hidden">
