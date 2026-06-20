@@ -123,14 +123,22 @@ async function startServer() {
   saveNow();
   console.log('数据库表结构初始化完成');
 
-  // 自动导入题库（如果数据库为空）
+  // 自动导入题库（如果数据库为空 或 是旧版2科目数据）
   const questionCount = db.prepare('SELECT COUNT(*) as count FROM questions').get();
-  if (questionCount.count === 0) {
-    console.log('检测到空数据库，开始自动导入题库...');
+  const subjectCount = db.prepare('SELECT COUNT(*) as count FROM subjects').get();
+  const needsReimport = questionCount.count === 0 || subjectCount.count <= 2;
+
+  if (needsReimport) {
+    if (subjectCount.count <= 2 && questionCount.count > 0) {
+      console.log('检测到旧版题库数据，正在更新为2026年新版...');
+      db.exec('DELETE FROM study_records; DELETE FROM wrong_questions; DELETE FROM favorites; DELETE FROM questions; DELETE FROM chapters; DELETE FROM subjects;');
+    }
+    console.log('开始导入2026年新版题库...');
     const { parseQuestionsFromExcel } = require('./utils/excel');
     const excelFiles = [
-      { name: '专业知识题库_已修复.xlsx', label: '专业知识' },
-      { name: '公共知识题库_已修复.xlsx', label: '公共知识' }
+      { name: '01.专业基础知识2026年_已解析.xlsx', label: '专业基础' },
+      { name: '02.公共基础知识2026年_已解析.xlsx', label: '公共基础' },
+      { name: '03.辅警管理办法2026年_已解析.xlsx', label: '辅警管理' }
     ];
     
     for (const file of excelFiles) {
