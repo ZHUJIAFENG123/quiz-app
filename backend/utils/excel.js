@@ -1,4 +1,4 @@
-﻿// Excel 导入导出工具
+// Excel 导入导出工具
 const XLSX = require("xlsx");
 
 /**
@@ -93,8 +93,8 @@ function parseQuestionsFromExcel(filePath) {
       if (!question.chapterName) {
         question.chapterName = question.subjectName;
       }
-      if (["单选题", "多选题", "判断题"].indexOf(question.type) === -1) {
-        errors.push("第" + rowNum + "行: 题型必须是单选题、多选题或判断题，当前为：" + question.type);
+      if (["单选", "多选", "判断"].indexOf(question.type) === -1) {
+        errors.push("第" + rowNum + "行: 题型必须是单选、多选或判断，当前为：" + question.type);
         continue;
       }
       if (!question.content) {
@@ -107,7 +107,7 @@ function parseQuestionsFromExcel(filePath) {
       }
 
       // 判断题答案标准化
-      if (question.type === "判断题") {
+      if (question.type === "判断") {
         if (["正确", "对", "√", "T", "True", "true", "YES", "yes", "1"].indexOf(question.answer) !== -1) {
           question.answer = "正确";
         } else if (["错误", "错", "×", "F", "False", "false", "NO", "no", "2"].indexOf(question.answer) !== -1) {
@@ -126,9 +126,9 @@ function parseQuestionsFromExcel(filePath) {
 
 /** 标准化题型 */
 function normalizeType(raw) {
-  if (raw.indexOf("单") !== -1) return "单选题";
-  if (raw.indexOf("多") !== -1) return "多选题";
-  if (raw.indexOf("判") !== -1 || raw.indexOf("对") !== -1 || raw.indexOf("错") !== -1) return "判断题";
+  if (raw.indexOf("单") !== -1) return "单选";
+  if (raw.indexOf("多") !== -1) return "多选";
+  if (raw.indexOf("判") !== -1 || raw.indexOf("对") !== -1 || raw.indexOf("错") !== -1) return "判断";
   return raw;
 }
 
