@@ -1,4 +1,4 @@
-﻿﻿﻿﻿const express = require('express');
+﻿﻿﻿﻿﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { loadDatabase, saveNow } = require('./config/database');
@@ -134,10 +134,15 @@ async function startServer() {
 
     const totalQuestions = db.prepare("SELECT COUNT(*) as count FROM questions").get();
     const forceReset = process.env.RESET_DB === "true";
+    // 检查是否选项数据缺失
+    const emptyOpts = totalQuestions.count > 0 
+      ? db.prepare("SELECT COUNT(*) as count FROM questions WHERE type IN ('单选题','多选题') AND (option_a IS NULL OR option_a = '')").get()
+      : { count: 0 };
 
-    if (totalQuestions.count === 0 || forceReset) {
-      if (forceReset) {
-        console.log("[导入] RESET_DB=true，清空旧数据...");
+    if (totalQuestions.count === 0 || forceReset || emptyOpts.count > 0) {
+      if (totalQuestions.count > 0) {
+        const reason = forceReset ? 'RESET_DB=true' : '选项数据缺失';
+        console.log("[导入] " + reason + "，清空旧数据重新导入...");
         db.exec("DELETE FROM study_records; DELETE FROM wrong_questions; DELETE FROM favorites; DELETE FROM questions; DELETE FROM chapters; DELETE FROM subjects;");
         saveNow();
       }
