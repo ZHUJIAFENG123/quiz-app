@@ -123,76 +123,82 @@ async function startServer() {
   saveNow();
   console.log('数据库表结构初始化完成');
 
-  // 自动导入题库（智能增量导入，不删除已有数据）
-  const { parseQuestionsFromExcel, deriveSubjectFromFilename } = require("./utils/excel");
-  const excelFiles = [
-    { name: "01.专业基础知识2026年_已解析.xlsx", label: "专业基础", subjectName: "专业知识" },
-    { name: "02.公共基础知识2026年_已解析.xlsx", label: "公共基础", subjectName: "公共知识" },
-    { name: "03.辅警管理办法2026年_已解析.xlsx", label: "辅警管理", subjectName: "辅警管理" }
-  ];
+  // ======== 自动导入题库 ========
+  try {
+    const { parseQuestionsFromExcel } = require("./utils/excel");
+    const excelFiles = [
+      { name: "01.专业基础知识2026年_已解析.xlsx", label: "专业基础", subjectName: "专业知识" },
+      { name: "02.公共基础知识2026年_已解析.xlsx", label: "公共基础", subjectName: "公共知识" },
+      { name: "03.辅警管理办法2026年_已解析.xlsx", label: "辅警管理", subjectName: "辅警管理" }
+    ];
 
-  // 检查是否需要导入：数据库为空 或 设置了 RESET_DB 环境变量
-  const totalQuestions = db.prepare("SELECT COUNT(*) as count FROM questions").get();
-  const forceReset = process.env.RESET_DB === "true";
-  if (totalQuestions.count === 0 || forceReset) {
-    if (forceReset) {
-      console.log("RESET_DB=true，清空旧数据重新导入...");
-      db.exec("DELETE FROM study_records; DELETE FROM wrong_questions; DELETE FROM favorites; DELETE FROM questions; DELETE FROM chapters; DELETE FROM subjects;");
-      saveNow();
-    }
-    console.log("数据库为空，开始导入题库...");
-    for (const file of excelFiles) {
-      const filePath = path.join(__dirname, "..", file.name);
-      const fs = require("fs");
-      if (!fs.existsSync(filePath)) {
-        console.log("  跳过 " + file.label + "（文件不存在: " + filePath + "）");
-        continue;
+    const totalQuestions = db.prepare("SELECT COUNT(*) as count FROM questions").get();
+    const forceReset = process.env.RESET_DB === "true";
+
+    if (totalQuestions.count === 0 || forceReset) {
+      if (forceReset) {
+        console.log("[导入] RESET_DB=true，清空旧数据...");
+        db.exec("DELETE FROM study_records; DELETE FROM wrong_questions; DELETE FROM favorites; DELETE FROM questions; DELETE FROM chapters; DELETE FROM subjects;");
+        saveNow();
       }
+      console.log("[导入] 开始导入题库...");
 
-      const { questions, errors } = parseQuestionsFromExcel(filePath);
-      console.log("  导入 " + file.label + ": " + questions.length + " 题, " + errors.length + " 个错误");
-
-      if (questions.length === 0) {
-        console.log("  跳过 " + file.label + "：解析结果为空");
-        continue;
-      }
-
-      let imported = 0;
-      const insertQ = db.prepare(
-        "INSERT INTO questions (subject_id, chapter_id, type, content, option_a, option_b, option_c, option_d, answer, analysis, difficulty) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-      );
-
-      for (const q of questions) {
-        try {
-          const subjectName = file.subjectName;
-          const chapterName = q.chapterName || q.subjectName || "默认章节";
-
-          let subject = db.prepare("SELECT id FROM subjects WHERE name = ?").get(subjectName);
-          if (!subject) {
-            const r = db.prepare("INSERT INTO subjects (name) VALUES (?)").run(subjectName);
-            subject = { id: r.lastInsertRowid };
-          }
-          let chapter = db.prepare("SELECT id FROM chapters WHERE name = ? AND subject_id = ?").get(chapterName, subject.id);
-          if (!chapter) {
-            const r = db.prepare("INSERT INTO chapters (subject_id, name) VALUES (?, ?)").run(subject.id, chapterName);
-            chapter = { id: r.lastInsertRowid };
-          }
-          insertQ.run(subject.id, chapter.id, q.type, q.content,
-            q.optionA, q.optionB, q.optionC, q.optionD, q.answer, q.analysis || "", 1);
-          imported++;
-        } catch (e) {
-          if (imported < 3) console.log("    导入失败: " + String(e).substring(0, 80));
+      for (const file of excelFiles) {
+        const filePath = path.join(__dirname, "..", file.name);
+        const fs = require("fs");
+        if (!fs.existsSync(filePath)) {
+          console.log("[导入] ❌ 文件不存在: " + filePath);
+          continue;
         }
-      }
-      console.log("  成功导入: " + imported + " 题");
-    }
 
-    const newCount = db.prepare("SELECT COUNT(*) as count FROM questions").get();
-    const newSubjectCount = db.prepare("SELECT COUNT(*) as count FROM subjects").get();
-    console.log("自动导入完成，共 " + newSubjectCount.count + " 个科目, " + newCount.count + " 题");
-    saveNow();
-  } else {
-    console.log("数据库已有 " + totalQuestions.count + " 题，跳过自动导入");
+        console.log("[导入] 正在解析 " + file.label + " ...");
+        const { questions, errors } = parseQuestionsFromExcel(filePath);
+        console.log("[导入] " + file.label + ": " + questions.length + " 题, " + errors.length + " 错误");
+
+        if (questions.length === 0) {
+          console.log("[导入] ⚠️ " + file.label + " 解析为空！");
+          if (errors.length > 0) console.log("[导入] 错误详情: " + errors.slice(0,3).join("; "));
+          continue;
+        }
+
+        let imported = 0;
+        const insertQ = db.prepare(
+          "INSERT INTO questions (subject_id, chapter_id, type, content, option_a, option_b, option_c, option_d, answer, analysis, difficulty) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+
+        for (const q of questions) {
+          try {
+            let subject = db.prepare("SELECT id FROM subjects WHERE name = ?").get(file.subjectName);
+            if (!subject) {
+              const r = db.prepare("INSERT INTO subjects (name) VALUES (?)").run(file.subjectName);
+              subject = { id: r.lastInsertRowid };
+            }
+            const chapterName = q.chapterName || q.subjectName || "默认章节";
+            let chapter = db.prepare("SELECT id FROM chapters WHERE name = ? AND subject_id = ?").get(chapterName, subject.id);
+            if (!chapter) {
+              const r = db.prepare("INSERT INTO chapters (subject_id, name) VALUES (?, ?)").run(subject.id, chapterName);
+              chapter = { id: r.lastInsertRowid };
+            }
+            insertQ.run(subject.id, chapter.id, q.type, q.content,
+              q.optionA, q.optionB, q.optionC, q.optionD, q.answer, q.analysis || "", 1);
+            imported++;
+          } catch (e) {
+            if (imported < 3) console.log("[导入] 失败: " + String(e).substring(0, 80));
+          }
+        }
+        console.log("[导入] ✅ " + file.label + ": " + imported + " 题");
+      }
+
+      const newCount = db.prepare("SELECT COUNT(*) as count FROM questions").get();
+      const newSubjectCount = db.prepare("SELECT COUNT(*) as count FROM subjects").get();
+      console.log("[导入] ✅ 完成！" + newSubjectCount.count + " 科目, " + newCount.count + " 题");
+      saveNow();
+    } else {
+      console.log("[导入] 数据库已有 " + totalQuestions.count + " 题，跳过");
+    }
+  } catch (err) {
+    console.error("[导入] ❗ 导入失败: " + err.message);
+    console.error(err.stack);
   }
 
   // 尝试从 GitHub 恢复学习数据
@@ -258,6 +264,27 @@ async function startServer() {
       res.json({ success: true, data: { count: data.count, updatedAt: data.updatedAt } });
     } catch (e) {
       res.json({ success: false, message: e.message });
+    }
+  });
+
+
+  // 诊断接口：查看数据库状态
+  app.get("/api/health", (req, res) => {
+    try {
+      const subjects = db.prepare("SELECT COUNT(*) as count FROM subjects").get();
+      const questions = db.prepare("SELECT COUNT(*) as count FROM questions").get();
+      const chapters = db.prepare("SELECT COUNT(*) as count FROM chapters").get();
+      res.json({
+        success: true,
+        data: {
+          subjects: subjects.count,
+          questions: questions.count,
+          chapters: chapters.count,
+          uptime: process.uptime()
+        }
+      });
+    } catch (e) {
+      res.status(500).json({ success: false, message: e.message });
     }
   });
 
