@@ -1,7 +1,7 @@
 /**
  * GitHub 数据同步工具
- * 将学习记录/错题/收藏 通过 GitHub API 保存到仓库中
- * 服务器重启后自动恢复数据
+ * 将用户账号、学习记录/错题/收藏 通过 GitHub API 保存到仓库中
+ * 服务器重启后自动恢复全部数据
  */
 
 const https = require('https');
@@ -14,25 +14,19 @@ const RAW_HOST = 'raw.githubusercontent.com';
 
 // ===== 导出数据 =====
 function exportData(db) {
+  const users = db.prepare('SELECT id, username, password, nickname, created_at FROM users ORDER BY id').all();
   const studyRecords = db.prepare('SELECT * FROM study_records ORDER BY id').all();
   const wrongQuestions = db.prepare('SELECT * FROM wrong_questions ORDER BY id').all();
   const favorites = db.prepare('SELECT * FROM favorites ORDER BY id').all();
-  
-  // 去除非必要字段
-  const clean = (arr, skipFields = []) => arr.map(r => {
-    const o = {};
-    for (const k of Object.keys(r)) {
-      if (!skipFields.includes(k)) o[k] = r[k];
-    }
-    return o;
-  });
 
   return {
-    studyRecords: clean(studyRecords),
-    wrongQuestions: clean(wrongQuestions),
-    favorites: clean(favorites),
+    users,
+    studyRecords,
+    wrongQuestions,
+    favorites,
     updatedAt: new Date().toISOString(),
     count: {
+      users: users.length,
       studyRecords: studyRecords.length,
       wrongQuestions: wrongQuestions.length,
       favorites: favorites.length
@@ -42,47 +36,72 @@ function exportData(db) {
 
 // ===== 导入数据 =====
 function importData(db, data) {
-  if (!data || !data.studyRecords) return { imported: 0 };
+  if (!data) return { imported: 0 };
   
   let imported = 0;
 
-  // 清空现有数据
+  // 清空现有用户数据（保留题库）
   db.prepare('DELETE FROM study_records').run();
   db.prepare('DELETE FROM wrong_questions').run();
   db.prepare('DELETE FROM favorites').run();
+  db.prepare('DELETE FROM users').run();
+
+  // 导入用户
+  if (data.users && data.users.length > 0) {
+    const insertUser = db.prepare(
+      'INSERT INTO users (id, username, password, nickname, created_at) VALUES (?, ?, ?, ?, ?)'
+    );
+    for (const u of data.users) {
+      try {
+        insertUser.run(u.id, u.username, u.password, u.nickname || '', u.created_at);
+      } catch (e) { /* skip */ }
+    }
+  }
 
   // 导入学习记录
-  const insertStudy = db.prepare(
-    'INSERT INTO study_records (question_id, is_correct, user_answer, created_at) VALUES (?, ?, ?, ?)'
-  );
-  for (const r of data.studyRecords) {
-    try {
-      insertStudy.run(r.question_id, r.is_correct ? 1 : 0, r.user_answer || '', r.created_at);
-      imported++;
-    } catch (e) { /* skip */ }
+  if (data.studyRecords && data.studyRecords.length > 0) {
+    const insertStudy = db.prepare(
+      'INSERT INTO study_records (id, question_id, user_id, is_correct, user_answer, mode, exam_session_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+    for (const r of data.studyRecords) {
+      try {
+        insertStudy.run(r.id, r.question_id, r.user_id || 0, r.is_correct ? 1 : 0, r.user_answer || '', r.mode || 'practice', r.exam_session_id || null, r.created_at);
+        imported++;
+      } catch (e) { /* skip */ }
+    }
   }
 
   // 导入错题
-  const insertWrong = db.prepare(
-    'INSERT OR IGNORE INTO wrong_questions (question_id, wrong_count, last_wrong_time) VALUES (?, ?, ?)'
-  );
-  for (const r of data.wrongQuestions) {
-    try {
-      insertWrong.run(r.question_id, r.wrong_count, r.last_wrong_time);
-    } catch (e) { /* skip */ }
+  if (data.wrongQuestions && data.wrongQuestions.length > 0) {
+    const insertWrong = db.prepare(
+      'INSERT OR IGNORE INTO wrong_questions (id, question_id, user_id, wrong_count, last_wrong_at, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    );
+    for (const r of data.wrongQuestions) {
+      try {
+        insertWrong.run(r.id, r.question_id, r.user_id || 0, r.wrong_count || 1, r.last_wrong_at, r.created_at);
+      } catch (e) { /* skip */ }
+    }
   }
 
   // 导入收藏
-  const insertFav = db.prepare(
-    'INSERT OR IGNORE INTO favorites (question_id, created_at) VALUES (?, ?)'
-  );
-  for (const r of data.favorites) {
-    try {
-      insertFav.run(r.question_id, r.created_at);
-    } catch (e) { /* skip */ }
+  if (data.favorites && data.favorites.length > 0) {
+    const insertFav = db.prepare(
+      'INSERT OR IGNORE INTO favorites (id, question_id, user_id, created_at) VALUES (?, ?, ?, ?)'
+    );
+    for (const r of data.favorites) {
+      try {
+        insertFav.run(r.id, r.question_id, r.user_id || 0, r.created_at);
+      } catch (e) { /* skip */ }
+    }
   }
 
-  return { imported, studyRecords: data.studyRecords.length, wrongQuestions: data.wrongQuestions.length, favorites: data.favorites.length };
+  return { 
+    imported, 
+    users: data.users?.length || 0,
+    studyRecords: data.studyRecords?.length || 0, 
+    wrongQuestions: data.wrongQuestions?.length || 0, 
+    favorites: data.favorites?.length || 0 
+  };
 }
 
 // ===== HTTP 请求封装 =====
@@ -117,7 +136,6 @@ async function saveToGitHub(jsonData) {
 
   const content = Buffer.from(JSON.stringify(jsonData, null, 2)).toString('base64');
 
-  // 先获取当前文件的 SHA
   let sha = null;
   try {
     const getOpts = {
@@ -132,9 +150,7 @@ async function saveToGitHub(jsonData) {
     };
     const result = await httpsRequest(getOpts);
     sha = result.sha;
-  } catch (e) {
-    // 文件不存在，将创建新文件
-  }
+  } catch (e) { /* 文件不存在 */ }
 
   const putOpts = {
     hostname: API_HOST,
@@ -149,7 +165,7 @@ async function saveToGitHub(jsonData) {
   };
 
   const body = JSON.stringify({
-    message: `同步学习数据 [${new Date().toLocaleString('zh-CN')}]`,
+    message: `同步数据 [${new Date().toLocaleString('zh-CN')}]`,
     content: content,
     ...(sha ? { sha } : {})
   });
@@ -175,7 +191,7 @@ async function loadFromGitHub() {
     const text = await httpsRequest(options);
     return typeof text === 'string' ? JSON.parse(text) : text;
   } catch (e) {
-    console.log('[同步] 未找到云端数据，将使用空数据库');
+    console.log('[同步] 未找到云端数据');
     return null;
   }
 }

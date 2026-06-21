@@ -32,6 +32,8 @@ router.post('/register', (req, res) => {
     const token = generateToken(user);
     
     res.status(201).json({ success: true, data: { user, token } });
+    // 后台同步到 GitHub
+    syncIfToken();
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -64,6 +66,8 @@ router.post('/login', (req, res) => {
         token
       }
     });
+    // 后台同步到 GitHub
+    syncIfToken();
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -82,3 +86,13 @@ router.get('/me', authMiddleware, (req, res) => {
 });
 
 module.exports = router;
+
+// 后台同步（不阻塞响应）
+function syncIfToken() {
+  if (!process.env.GITHUB_TOKEN) return;
+  try {
+    const { exportData, saveToGitHub } = require('../utils/sync');
+    const data = exportData(global.db);
+    saveToGitHub(data).catch(() => {});
+  } catch {}
+}
