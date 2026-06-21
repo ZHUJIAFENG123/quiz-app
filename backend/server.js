@@ -131,9 +131,15 @@ async function startServer() {
     { name: "03.辅警管理办法2026年_已解析.xlsx", label: "辅警管理", subjectName: "辅警管理" }
   ];
 
-  // 仅在数据库为空时执行导入（避免重复导入）
+  // 检查是否需要导入：数据库为空 或 设置了 RESET_DB 环境变量
   const totalQuestions = db.prepare("SELECT COUNT(*) as count FROM questions").get();
-  if (totalQuestions.count === 0) {
+  const forceReset = process.env.RESET_DB === "true";
+  if (totalQuestions.count === 0 || forceReset) {
+    if (forceReset) {
+      console.log("RESET_DB=true，清空旧数据重新导入...");
+      db.exec("DELETE FROM study_records; DELETE FROM wrong_questions; DELETE FROM favorites; DELETE FROM questions; DELETE FROM chapters; DELETE FROM subjects;");
+      saveNow();
+    }
     console.log("数据库为空，开始导入题库...");
     for (const file of excelFiles) {
       const filePath = path.join(__dirname, "..", file.name);
