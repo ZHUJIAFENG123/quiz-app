@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { loadDatabase, saveNow } = require('./config/database');
@@ -123,66 +123,63 @@ async function startServer() {
   saveNow();
   console.log('数据库表结构初始化完成');
 
-  // 自动导入题库（如果数据库为空 或 是旧版2科目数据）
-  const questionCount = db.prepare('SELECT COUNT(*) as count FROM questions').get();
-  const subjectCount = db.prepare('SELECT COUNT(*) as count FROM subjects').get();
-  const needsReimport = questionCount.count === 0 || subjectCount.count <= 2;
+  // 自动导入题库（智能增量导入，不删除已有数据）
+  const { parseQuestionsFromExcel, deriveSubjectFromFilename } = require("./utils/excel");
+  const excelFiles = [
+    { name: "01.专业基础知识2026年_已解析.xlsx", label: "专业基础", subjectName: "专业知识" },
+    { name: "02.公共基础知识2026年_已解析.xlsx", label: "公共基础", subjectName: "公共知识" },
+    { name: "03.辅警管理办法2026年_已解析.xlsx", label: "辅警管理", subjectName: "辅警管理" }
+  ];
 
-  if (needsReimport) {
-    if (subjectCount.count <= 2 && questionCount.count > 0) {
-      console.log('检测到旧版题库数据，正在更新为2026年新版...');
-      db.exec('DELETE FROM study_records; DELETE FROM wrong_questions; DELETE FROM favorites; DELETE FROM questions; DELETE FROM chapters; DELETE FROM subjects;');
+  for (const file of excelFiles) {
+    const filePath = path.join(__dirname, "..", file.name);
+    const fs = require("fs");
+    if (!fs.existsSync(filePath)) {
+      console.log("  跳过 " + file.label + "（文件不存在: " + filePath + "）");
+      continue;
     }
-    console.log('开始导入2026年新版题库...');
-    const { parseQuestionsFromExcel } = require('./utils/excel');
-    const excelFiles = [
-      { name: '01.专业基础知识2026年_已解析.xlsx', label: '专业基础' },
-      { name: '02.公共基础知识2026年_已解析.xlsx', label: '公共基础' },
-      { name: '03.辅警管理办法2026年_已解析.xlsx', label: '辅警管理' }
-    ];
-    
-    for (const file of excelFiles) {
-      const filePath = path.join(__dirname, '..', file.name);
-      const fs = require('fs');
-      if (!fs.existsSync(filePath)) {
-        console.log(`  跳过 ${file.label}（文件不存在: ${filePath}）`);
-        continue;
-      }
-      
-      const { questions, errors } = parseQuestionsFromExcel(filePath);
-      console.log(`  导入 ${file.label}: ${questions.length} 题, ${errors.length} 个错误`);
-      
-      let imported = 0;
-      const insertQ = db.prepare(
-        'INSERT INTO questions (subject_id, chapter_id, type, content, option_a, option_b, option_c, option_d, answer, analysis, difficulty) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      );
-      
-      for (const q of questions) {
-        try {
-          let subject = db.prepare('SELECT id FROM subjects WHERE name = ?').get(q.subjectName);
-          if (!subject) {
-            const r = db.prepare('INSERT INTO subjects (name) VALUES (?)').run(q.subjectName);
-            subject = { id: r.lastInsertRowid };
-          }
-          let chapter = db.prepare('SELECT id FROM chapters WHERE name = ? AND subject_id = ?').get(q.chapterName, subject.id);
-          if (!chapter) {
-            const r = db.prepare('INSERT INTO chapters (subject_id, name) VALUES (?, ?)').run(subject.id, q.chapterName);
-            chapter = { id: r.lastInsertRowid };
-          }
-          insertQ.run(subject.id, chapter.id, q.type, q.content,
-            q.optionA, q.optionB, q.optionC, q.optionD, q.answer, q.analysis || '', 1);
-          imported++;
-        } catch (e) {
-          if (imported < 3) console.log(`    导入失败: ${String(e).substring(0, 80)}`);
+    const { questions, errors } = parseQuestionsFromExcel(filePath);
+    console.log("  导入 " + file.label + ": " + questions.length + " 题, " + errors.length + " 个错误");
+
+    if (questions.length === 0) {
+      console.log("  跳过 " + file.label + "：解析结果为空");
+      continue;
+    }
+
+    let imported = 0;
+    const insertQ = db.prepare(
+      "INSERT INTO questions (subject_id, chapter_id, type, content, option_a, option_b, option_c, option_d, answer, analysis, difficulty) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    );
+
+    for (const q of questions) {
+      try {
+        const subjectName = file.subjectName;
+        const chapterName = q.chapterName || q.subjectName || "默认章节";
+
+        let subject = db.prepare("SELECT id FROM subjects WHERE name = ?").get(subjectName);
+        if (!subject) {
+          const r = db.prepare("INSERT INTO subjects (name) VALUES (?)").run(subjectName);
+          subject = { id: r.lastInsertRowid };
         }
+        let chapter = db.prepare("SELECT id FROM chapters WHERE name = ? AND subject_id = ?").get(chapterName, subject.id);
+        if (!chapter) {
+          const r = db.prepare("INSERT INTO chapters (subject_id, name) VALUES (?, ?)").run(subject.id, chapterName);
+          chapter = { id: r.lastInsertRowid };
+        }
+        insertQ.run(subject.id, chapter.id, q.type, q.content,
+          q.optionA, q.optionB, q.optionC, q.optionD, q.answer, q.analysis || "", 1);
+        imported++;
+      } catch (e) {
+        if (imported < 3) console.log("    导入失败: " + String(e).substring(0, 80));
       }
-      console.log(`  成功导入: ${imported} 题`);
     }
-    
-    const newCount = db.prepare('SELECT COUNT(*) as count FROM questions').get();
-    console.log(`自动导入完成，共 ${newCount.count} 题`);
-    saveNow();
+    console.log("  成功导入: " + imported + " 题");
   }
+
+  const newCount = db.prepare("SELECT COUNT(*) as count FROM questions").get();
+  const newSubjectCount = db.prepare("SELECT COUNT(*) as count FROM subjects").get();
+  console.log("自动导入完成，共 " + newSubjectCount.count + " 个科目, " + newCount.count + " 题");
+  saveNow();
 
   // 尝试从 GitHub 恢复学习数据
   try {
