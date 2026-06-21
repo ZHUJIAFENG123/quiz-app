@@ -216,7 +216,7 @@
           上一题
         </button>
         <span class="text-xs text-gray-400">
-          第 {{ currentPage > 1 ? (currentPage - 1) * 20 + currentIndex + 1 : currentIndex + 1 }} 题
+          {{ currentIndex + 1 }} / {{ questions.length }}
         </span>
         <button
           @click="nextQuestion"
