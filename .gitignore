@@ -1,7 +1,15 @@
-node_modules/
-backend/data/
+﻿node_modules/
+# backend/data/ 主库已固化提交；backups和uploads继续忽略
 backend/uploads/
 frontend/dist/
 .DS_Store
 *.log
 .env
+
+backend/data/backups/
+
+backend/data/uploads/
+
+*.db-wal
+*.db-shm
+*.db-journal
