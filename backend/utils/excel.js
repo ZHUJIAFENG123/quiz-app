@@ -123,17 +123,19 @@ function normalizeType(raw) {
   return raw;
 }
 
-/** 标准化答案（新格式用字母 a/b/c/d 表示答案 -> 转为选项内容） */
+/** 标准化答案（新格式用字母 a/b/c/d 表示答案 -> 统一为大写字母） */
 function normalizeAnswer(raw, options) {
+  raw = String(raw).trim();
   if (["正确", "对", "√", "T", "True", "true", "YES", "yes", "1"].indexOf(raw) !== -1) return "正确";
   if (["错误", "错", "×", "F", "False", "false", "NO", "no", "2"].indexOf(raw) !== -1) return "错误";
 
-  var letter = raw.trim().toUpperCase();
-  var indexMap = { "A": 0, "B": 1, "C": 2, "D": 3 };
-  if (letter in indexMap && options[indexMap[letter]]) {
-    return options[indexMap[letter]];
-  }
-  return raw;
+  // 单选/多选：统一大写字母
+  var parts = raw.split(",");
+  var result = parts.map(function(p) {
+    var t = p.trim().toUpperCase();
+    return /^[A-D]$/.test(t) ? t : p.trim();
+  }).join(",");
+  return result;
 }
 
 /** 根据文件名推导科目名称 */
