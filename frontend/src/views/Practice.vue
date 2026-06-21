@@ -215,9 +215,6 @@
           <font-awesome-icon icon="chevron-left" class="text-xs" />
           上一题
         </button>
-        <span class="text-xs text-gray-400">
-          {{ currentIndex + 1 }} / {{ questions.length }}
-        </span>
         <button
           @click="nextQuestion"
           class="btn-primary text-sm flex items-center gap-1"
