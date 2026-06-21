@@ -17,7 +17,7 @@ function parseQuestionsFromExcel(filePath) {
   const range = XLSX.utils.decode_range(sheet["!ref"]);
   const firstCellAddr = XLSX.utils.encode_cell({ r: 0, c: 0 });
   const firstCell = sheet[firstCellAddr];
-  const firstCellText = firstCell ? String(firstCell.v) : "";
+  const firstCellText = firstCell ? String(firstCell.v).trim() : "";
   const hasInstructionRow = firstCellText.indexOf("多个供选答案") !== -1
     || firstCellText.indexOf("供选答案") !== -1;
 
@@ -25,50 +25,59 @@ function parseQuestionsFromExcel(filePath) {
   const rangeParam = hasInstructionRow ? 1 : 0;
   const rows = XLSX.utils.sheet_to_json(sheet, { defval: "", range: rangeParam });
 
+  // 规范化列名（去空格）
+  const normRow = {};
+  const firstRow = rows[0] || {};
+  for (const key of Object.keys(firstRow)) {
+    normRow[key.trim()] = firstRow[key];
+  }
+
   const questions = [];
   const errors = [];
 
   // 检测格式：看是否有 "供选答案" 字段
-  const firstRow = rows[0] || {};
-  const isNewFormat = ("供选答案" in firstRow) && !("选项A" in firstRow);
+  const isNewFormat = ("供选答案" in normRow) && !("选项A" in normRow);
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
+    // 规范化当前行
+    const r = {};
+    for (const key of Object.keys(row)) { r[key.trim()] = row[key]; }
+    
     const rowNum = hasInstructionRow ? (i + 3) : (i + 2);
     try {
       let question;
 
       if (isNewFormat) {
         // ======== 新格式 ========
-        const rawOptions = String(row["供选答案"] || "").trim();
+        const rawOptions = String(r["供选答案"] || "").trim();
         let parts = rawOptions.split(";").map(function(s) { return s.trim(); }).filter(Boolean);
-        if (parts.length > 0 && parts[parts.length - 1] === "") parts.pop();
 
         question = {
-          subjectName: String(row["知识点"] || "").trim(),
-          chapterName: String(row["知识点"] || "").trim(),
-          type: normalizeType(String(row["题型"] || "").trim()),
-          content: String(row["题目内容"] || "").trim(),
+          subjectName: String(r["知识点"] || "").trim(),
+          chapterName: String(r["知识点"] || "").trim(),
+          type: normalizeType(String(r["题型"] || "").trim()),
+          content: String(r["题目内容"] || "").trim(),
           optionA: parts[0] || "",
           optionB: parts[1] || "",
           optionC: parts[2] || "",
           optionD: parts[3] || "",
-          answer: normalizeAnswer(String(row["参考答案"] || "").trim(), parts),
-          analysis: String(row["试题解析"] || "").trim(),
+          answer: normalizeAnswer(String(r["参考答案"] || "").trim(), parts),
+          analysis: String(r["试题解析"] || "").trim(),
         };
       } else {
         // ======== 旧格式 ========
         question = {
-          subjectName: String(row["科目"] || "").trim(),
-          chapterName: String(row["章节"] || "").trim(),
-          type: String(row["题型"] || "").trim(),
-          content: String(row["题目"] || "").trim(),
-          optionA: String(row["选项A"] || "").trim(),
-          optionB: String(row["选项B"] || "").trim(),
-          optionC: String(row["选项C"] || "").trim(),
-          optionD: String(row["选项D"] || "").trim(),
-          answer: String(row["正确答案"] || "").trim(),
-          analysis: String(row["解析"] || "").trim(),
+          subjectName: String(r["科目"] || "").trim(),
+          chapterName: String(r["章节"] || "").trim(),
+          type: String(r["题型"] || "").trim(),
+          content: String(r["题目"] || "").trim(),
+          optionA: String(r["选项A"] || "").trim(),
+          optionB: String(r["选项B"] || "").trim(),
+          optionC: String(r["选项C"] || "").trim(),
+          optionD: String(r["选项D"] || "").trim(),
+          answer: String(r["正确答案"] || "").trim(),
+          analysis: String(r["解析"] || "").trim(),
         };
       }
 

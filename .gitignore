@@ -1,4 +1,4 @@
-﻿node_modules/
+﻿﻿node_modules/
 # backend/data/ 主库已固化提交；backups和uploads继续忽略
 backend/uploads/
 frontend/dist/

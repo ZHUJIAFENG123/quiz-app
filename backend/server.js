@@ -1,4 +1,4 @@
-﻿const express = require('express');
+﻿﻿﻿﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { loadDatabase, saveNow } = require('./config/database');
@@ -153,7 +153,12 @@ async function startServer() {
 
         console.log("[导入] 正在解析 " + file.label + " ...");
         const { questions, errors } = parseQuestionsFromExcel(filePath);
-        console.log("[导入] " + file.label + ": " + questions.length + " 题, " + errors.length + " 错误");
+        // 用文件名覆盖科目名，确保大题分类正确
+        for (const q of questions) {
+          q.subjectName = file.label;
+          if (!q.chapterName) q.chapterName = file.label;
+        }
+        console.log(`  导入 ${file.label}: ${questions.length} 题, ${errors.length} 个错误`);
 
         if (questions.length === 0) {
           console.log("[导入] ⚠️ " + file.label + " 解析为空！");
@@ -168,9 +173,9 @@ async function startServer() {
 
         for (const q of questions) {
           try {
-            let subject = db.prepare("SELECT id FROM subjects WHERE name = ?").get(file.subjectName);
+            let subject = db.prepare("SELECT id FROM subjects WHERE name = ?").get(q.subjectName);
             if (!subject) {
-              const r = db.prepare("INSERT INTO subjects (name) VALUES (?)").run(file.subjectName);
+              const r = db.prepare("INSERT INTO subjects (name) VALUES (?)").run(q.subjectName);
               subject = { id: r.lastInsertRowid };
             }
             const chapterName = q.chapterName || q.subjectName || "默认章节";
