@@ -684,7 +684,7 @@ async function loadQuestions() {
       page: qPage.value,
       pageSize: qPageSize,
     }
-    if (qSearch.value) params.search = qSearch.value
+    if (qSearch.value) params.keyword = qSearch.value
     if (qSubjectFilter.value) params.subject_id = qSubjectFilter.value
     if (qChapterFilter.value) params.chapter_id = qChapterFilter.value
     if (qTypeFilter.value) params.type = qTypeFilter.value
@@ -733,7 +733,7 @@ function openQuestionModal(q = null) {
     editingQuestion.value = q
     qForm.subject_id = q.subject_id || ''
     qForm.chapter_id = q.chapter_id || ''
-    qForm.type = q.type || 'single'
+    qForm.type = q.type || '单选'
     qForm.content = q.content || ''
     qForm.option_a = q.option_a || ''
     qForm.option_b = q.option_b || ''
@@ -746,7 +746,7 @@ function openQuestionModal(q = null) {
     editingQuestion.value = null
     qForm.subject_id = ''
     qForm.chapter_id = ''
-    qForm.type = 'single'
+    qForm.type = '单选'
     qForm.content = ''
     qForm.option_a = ''
     qForm.option_b = ''

@@ -92,7 +92,7 @@
       <div class="mb-4">
         <h3 class="font-semibold text-gray-800 mb-3 text-sm">答题详情</h3>
         <div
-          v-for="(q, idx) in result.questions"
+          v-for="(q, idx) in result.records"
           :key="q.id || idx"
           class="card mb-3"
           :class="q.is_correct ? 'border-l-4 border-l-green-400' : 'border-l-4 border-l-red-400'"

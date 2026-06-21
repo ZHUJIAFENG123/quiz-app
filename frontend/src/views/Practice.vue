@@ -12,8 +12,20 @@
       </div>
     </div>
 
-    <!-- 筛选栏（错题模式隐藏） -->
-    <div v-if="!isWrongMode" class="card mb-4 p-3">
+    <!-- 收藏模式标题 -->
+    <div v-if="isFavMode" class="card mb-4 p-3 bg-pink-50 border-pink-200">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <font-awesome-icon icon="heart" class="text-pink-500" />
+          <span class="font-medium text-pink-700">练习收藏</span>
+          <span class="text-xs text-pink-500">共 {{ totalCount }} 道</span>
+        </div>
+        <router-link to="/favorites" class="text-xs text-pink-500 hover:text-pink-700">返回收藏夹</router-link>
+      </div>
+    </div>
+
+    <!-- 筛选栏（特殊模式隐藏） -->
+    <div v-if="!isWrongMode && !isFavMode" class="card mb-4 p-3">
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <select v-model="filters.subject_id" class="input text-sm" @change="onSubjectChange">
           <option :value="null">全部科目</option>
@@ -254,6 +266,7 @@ const route = useRoute()
 
 // 错题模式
 const isWrongMode = computed(() => route.query.source === 'wrong')
+const isFavMode = computed(() => route.query.source === 'favorites')
 
 // 筛选条件
 const filters = reactive({
@@ -307,7 +320,7 @@ onMounted(async () => {
 
   // 如果路由带有筛选参数，自动开始
   // 错题模式自动开始
-  if (route.query.source === 'wrong') {
+  if (route.query.source === 'wrong' || route.query.source === 'favorites') {
     await startPractice()
   } else if (route.query.subject_id || route.query.chapter_id || route.query.type) {
     if (route.query.mode) filters.mode = route.query.mode
@@ -345,12 +358,13 @@ async function startPractice(startIndex = 0) {
   
   loading.value = true
   try {
+    const pageForStart = Math.floor(startIndex / 20) + 1
     let data
     if (isWrongMode.value) {
-      data = await API.getWrongQuestions({ page: 1, pageSize: 20 })
+      data = await API.getWrongQuestions({ page: pageForStart, pageSize: 20 })
+    } else if (isFavMode.value) {
+      data = await API.getFavorites({ page: pageForStart, pageSize: 20 })
     } else {
-      // 如果指定了起始位置，加载多页直到覆盖
-      const pageForStart = Math.floor(startIndex / 20) + 1
       data = await API.getPracticeQuestions({
         page: pageForStart,
         pageSize: 20,
@@ -390,6 +404,8 @@ async function loadMore() {
     let data
     if (isWrongMode.value) {
       data = await API.getWrongQuestions({ page: currentPage.value, pageSize: 20 })
+    } else if (isFavMode.value) {
+      data = await API.getFavorites({ page: currentPage.value, pageSize: 20 })
     } else {
       data = await API.getPracticeQuestions({
         page: currentPage.value,
@@ -417,7 +433,7 @@ async function loadMore() {
 const PRACTICE_KEY = 'quiz_practice_state'
 
 function savePracticeState() {
-  if (isWrongMode.value) return // 错题模式不保存
+  if (isWrongMode.value || isFavMode.value) return // 特殊模式不保存
   try {
     const state = {
       filters: JSON.parse(JSON.stringify(filters)),

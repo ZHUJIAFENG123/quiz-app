@@ -9,6 +9,12 @@
       </router-link>
     </div>
 
+    <!-- 未登录提示 -->
+    <div v-if="!currentUser" class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2.5 text-sm text-blue-700 flex items-center gap-2">
+      <font-awesome-icon icon="circle-info" class="text-blue-500" />
+      <span>未登录状态下数据是共享的，建议<router-link to="/login" class="font-medium underline">登录</router-link>以保存个人数据</span>
+    </div>
+
     <!-- 学习统计卡片 -->
     <div class="grid grid-cols-3 gap-3">
       <div class="card text-center">
@@ -16,7 +22,7 @@
         <div class="text-xs text-gray-500 mt-1">题库总数</div>
       </div>
       <div class="card text-center">
-        <div class="text-2xl font-bold text-blue-500">{{ stats.study_count ?? '-' }}</div>
+        <div class="text-2xl font-bold text-blue-500">{{ stats.total_study ?? '-' }}</div>
         <div class="text-xs text-gray-500 mt-1">已学题目</div>
       </div>
       <div class="card text-center">
@@ -144,15 +150,19 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import API from '../api'
 
 const router = useRouter()
 
+const currentUser = computed(() => {
+  try { return !!localStorage.getItem('quiz_token') } catch { return false }
+})
+
 const stats = reactive({
   total_questions: 0,
-  study_count: 0,
+  total_study: 0,
   accuracy: null,
   wrong_count: 0,
   favorite_count: 0,

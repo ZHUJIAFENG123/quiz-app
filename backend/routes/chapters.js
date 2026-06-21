@@ -87,9 +87,9 @@ router.get('/:id/question-count', (req, res) => {
     const total = db.prepare('SELECT COUNT(*) as count FROM questions WHERE chapter_id = ?').get(req.params.id);
     const result = { total: total.count };
     for (const row of counts) {
-      if (row.type === '单选题') result.single_count = row.count;
-      if (row.type === '多选题') result.multi_count = row.count;
-      if (row.type === '判断题') result.judge_count = row.count;
+      if (row.type === '单选') result.single_count = row.count;
+      if (row.type === '多选') result.multi_count = row.count;
+      if (row.type === '判断') result.judge_count = row.count;
     }
     res.json({ success: true, data: result });
   } catch (err) {

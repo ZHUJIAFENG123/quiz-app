@@ -441,19 +441,14 @@ async function submitExam() {
   clearInterval(timerInterval.value)
   
   try {
-    // 提交所有已作答的题目
-    for (const q of examQuestions.value) {
-      const answer = examAnswers[q.id]
-      if (answer !== undefined) {
-        try {
-          const userAnswer = Array.isArray(answer) ? answer.join(',') : String(answer)
-          await API.submitExamAnswer(sessionId.value, {
-            question_id: q.id,
-            user_answer: userAnswer
-          })
-        } catch { /* 跳过单题提交失败 */ }
-      }
-    }
+    // 并行提交所有已作答的题目
+    const promises = examQuestions.value
+      .filter(q => examAnswers[q.id] !== undefined)
+      .map(q => {
+        const userAnswer = Array.isArray(examAnswers[q.id]) ? examAnswers[q.id].join(',') : String(examAnswers[q.id])
+        return API.submitExamAnswer(sessionId.value, { question_id: q.id, user_answer: userAnswer }).catch(() => {})
+      })
+    await Promise.all(promises)
     // 后台同步到云端（静默）
     API.syncToCloud().catch(() => {})
   } finally {

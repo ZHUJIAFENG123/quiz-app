@@ -14,6 +14,7 @@ router.get('/stats', (req, res) => {
     const totalQuestions = db.prepare('SELECT COUNT(*) as count FROM questions').get();
     const wrongCount = db.prepare('SELECT COUNT(*) as count FROM wrong_questions WHERE user_id = ?').get(userId);
     const favCount = db.prepare('SELECT COUNT(*) as count FROM favorites WHERE user_id = ?').get(userId);
+    const todayCount = db.prepare("SELECT COUNT(*) as count FROM study_records WHERE user_id = ? AND DATE(created_at) = DATE('now')").get(userId);
     
     res.json({
       success: true,
@@ -25,7 +26,8 @@ router.get('/stats', (req, res) => {
         exam_count: examSessions.count,
         total_questions: totalQuestions.count,
         wrong_count: wrongCount.count,
-        favorite_count: favCount.count
+        favorite_count: favCount.count,
+        today_count: todayCount.count
       }
     });
   } catch (err) {
