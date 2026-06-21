@@ -131,55 +131,63 @@ async function startServer() {
     { name: "03.辅警管理办法2026年_已解析.xlsx", label: "辅警管理", subjectName: "辅警管理" }
   ];
 
-  for (const file of excelFiles) {
-    const filePath = path.join(__dirname, "..", file.name);
-    const fs = require("fs");
-    if (!fs.existsSync(filePath)) {
-      console.log("  跳过 " + file.label + "（文件不存在: " + filePath + "）");
-      continue;
-    }
-    const { questions, errors } = parseQuestionsFromExcel(filePath);
-    console.log("  导入 " + file.label + ": " + questions.length + " 题, " + errors.length + " 个错误");
-
-    if (questions.length === 0) {
-      console.log("  跳过 " + file.label + "：解析结果为空");
-      continue;
-    }
-
-    let imported = 0;
-    const insertQ = db.prepare(
-      "INSERT INTO questions (subject_id, chapter_id, type, content, option_a, option_b, option_c, option_d, answer, analysis, difficulty) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    );
-
-    for (const q of questions) {
-      try {
-        const subjectName = file.subjectName;
-        const chapterName = q.chapterName || q.subjectName || "默认章节";
-
-        let subject = db.prepare("SELECT id FROM subjects WHERE name = ?").get(subjectName);
-        if (!subject) {
-          const r = db.prepare("INSERT INTO subjects (name) VALUES (?)").run(subjectName);
-          subject = { id: r.lastInsertRowid };
-        }
-        let chapter = db.prepare("SELECT id FROM chapters WHERE name = ? AND subject_id = ?").get(chapterName, subject.id);
-        if (!chapter) {
-          const r = db.prepare("INSERT INTO chapters (subject_id, name) VALUES (?, ?)").run(subject.id, chapterName);
-          chapter = { id: r.lastInsertRowid };
-        }
-        insertQ.run(subject.id, chapter.id, q.type, q.content,
-          q.optionA, q.optionB, q.optionC, q.optionD, q.answer, q.analysis || "", 1);
-        imported++;
-      } catch (e) {
-        if (imported < 3) console.log("    导入失败: " + String(e).substring(0, 80));
+  // 仅在数据库为空时执行导入（避免重复导入）
+  const totalQuestions = db.prepare("SELECT COUNT(*) as count FROM questions").get();
+  if (totalQuestions.count === 0) {
+    console.log("数据库为空，开始导入题库...");
+    for (const file of excelFiles) {
+      const filePath = path.join(__dirname, "..", file.name);
+      const fs = require("fs");
+      if (!fs.existsSync(filePath)) {
+        console.log("  跳过 " + file.label + "（文件不存在: " + filePath + "）");
+        continue;
       }
-    }
-    console.log("  成功导入: " + imported + " 题");
-  }
 
-  const newCount = db.prepare("SELECT COUNT(*) as count FROM questions").get();
-  const newSubjectCount = db.prepare("SELECT COUNT(*) as count FROM subjects").get();
-  console.log("自动导入完成，共 " + newSubjectCount.count + " 个科目, " + newCount.count + " 题");
-  saveNow();
+      const { questions, errors } = parseQuestionsFromExcel(filePath);
+      console.log("  导入 " + file.label + ": " + questions.length + " 题, " + errors.length + " 个错误");
+
+      if (questions.length === 0) {
+        console.log("  跳过 " + file.label + "：解析结果为空");
+        continue;
+      }
+
+      let imported = 0;
+      const insertQ = db.prepare(
+        "INSERT INTO questions (subject_id, chapter_id, type, content, option_a, option_b, option_c, option_d, answer, analysis, difficulty) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      );
+
+      for (const q of questions) {
+        try {
+          const subjectName = file.subjectName;
+          const chapterName = q.chapterName || q.subjectName || "默认章节";
+
+          let subject = db.prepare("SELECT id FROM subjects WHERE name = ?").get(subjectName);
+          if (!subject) {
+            const r = db.prepare("INSERT INTO subjects (name) VALUES (?)").run(subjectName);
+            subject = { id: r.lastInsertRowid };
+          }
+          let chapter = db.prepare("SELECT id FROM chapters WHERE name = ? AND subject_id = ?").get(chapterName, subject.id);
+          if (!chapter) {
+            const r = db.prepare("INSERT INTO chapters (subject_id, name) VALUES (?, ?)").run(subject.id, chapterName);
+            chapter = { id: r.lastInsertRowid };
+          }
+          insertQ.run(subject.id, chapter.id, q.type, q.content,
+            q.optionA, q.optionB, q.optionC, q.optionD, q.answer, q.analysis || "", 1);
+          imported++;
+        } catch (e) {
+          if (imported < 3) console.log("    导入失败: " + String(e).substring(0, 80));
+        }
+      }
+      console.log("  成功导入: " + imported + " 题");
+    }
+
+    const newCount = db.prepare("SELECT COUNT(*) as count FROM questions").get();
+    const newSubjectCount = db.prepare("SELECT COUNT(*) as count FROM subjects").get();
+    console.log("自动导入完成，共 " + newSubjectCount.count + " 个科目, " + newCount.count + " 题");
+    saveNow();
+  } else {
+    console.log("数据库已有 " + totalQuestions.count + " 题，跳过自动导入");
+  }
 
   // 尝试从 GitHub 恢复学习数据
   try {
