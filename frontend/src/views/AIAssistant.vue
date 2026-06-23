@@ -75,8 +75,6 @@
 
           <div ref="chatContainer" class="chat-scroll">
             <div v-if="messages.length === 0" class="empty-state">
-              <img src="/mascot.png" alt="AI assistant" />
-              <h2>今天想突破哪一类题？</h2>
               <p>可以直接提问，也可以点左侧快捷任务开始。适合问：题目解析、易错点、考点框架、复习计划。</p>
               <div class="starter-grid">
                 <button v-for="starter in starters" :key="starter" type="button" :disabled="aiLoading" @click="sendPreset(starter)">
