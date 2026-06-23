@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿const express = require('express');
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { loadDatabase, saveNow } = require('./config/database');
@@ -228,7 +228,19 @@ async function startServer() {
   const PORT = process.env.PORT || 8080;
 
   // 中间件
-  app.use(cors());
+  const allowedOrigins = process.env.NODE_ENV === 'production' 
+    ? [process.env.CORS_ORIGIN || 'https://quiz-app-production-17b8.up.railway.app']
+    : ['http://localhost:5173', 'http://localhost:8080'];
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true); // 公网部署时可改为拒绝
+      }
+    },
+    credentials: true
+  }));
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 

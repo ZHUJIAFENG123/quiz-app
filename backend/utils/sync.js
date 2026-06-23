@@ -14,7 +14,7 @@ const RAW_HOST = 'raw.githubusercontent.com';
 
 // ===== 导出数据 =====
 function exportData(db) {
-  const users = db.prepare('SELECT id, username, password, nickname, created_at FROM users ORDER BY id').all();
+  const users = db.prepare('SELECT id, username, nickname, created_at FROM users ORDER BY id').all();
   const studyRecords = db.prepare('SELECT * FROM study_records ORDER BY id').all();
   const wrongQuestions = db.prepare('SELECT * FROM wrong_questions ORDER BY id').all();
   const favorites = db.prepare('SELECT * FROM favorites ORDER BY id').all();
@@ -46,14 +46,14 @@ function importData(db, data) {
   db.prepare('DELETE FROM favorites').run();
   db.prepare('DELETE FROM users').run();
 
-  // 导入用户
+  // 导入用户（密码不同步，恢复后需重置密码登录）
   if (data.users && data.users.length > 0) {
     const insertUser = db.prepare(
-      'INSERT INTO users (id, username, password, nickname, created_at) VALUES (?, ?, ?, ?, ?)'
+      'INSERT OR IGNORE INTO users (id, username, nickname, created_at) VALUES (?, ?, ?, ?)'
     );
     for (const u of data.users) {
       try {
-        insertUser.run(u.id, u.username, u.password, u.nickname || '', u.created_at);
+        insertUser.run(u.id, u.username, u.nickname || '', u.created_at);
       } catch (e) { /* skip */ }
     }
   }

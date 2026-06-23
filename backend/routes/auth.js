@@ -4,8 +4,34 @@ const bcrypt = require('bcryptjs');
 const db = require('../config/db');
 const { generateToken, authMiddleware } = require('../middleware/auth');
 
+// ===== 速率限制中间件 =====
+const rateLimitMap = new Map();
+function rateLimit(maxAttempts = 10, windowMs = 60 * 1000) {
+  return (req, res, next) => {
+    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const now = Date.now();
+    if (!rateLimitMap.has(ip)) rateLimitMap.set(ip, []);
+    const timestamps = rateLimitMap.get(ip).filter(t => now - t < windowMs);
+    if (timestamps.length >= maxAttempts) {
+      return res.status(429).json({ success: false, message: '请求过于频繁，请稍后再试' });
+    }
+    timestamps.push(now);
+    rateLimitMap.set(ip, timestamps);
+    next();
+  };
+}
+// 每60秒自动清理过期记录
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, timestamps] of rateLimitMap) {
+    const valid = timestamps.filter(t => now - t < 60000);
+    if (valid.length === 0) rateLimitMap.delete(ip);
+    else rateLimitMap.set(ip, valid);
+  }
+}, 60000);
+
 // 注册
-router.post('/register', (req, res) => {
+router.post('/register', rateLimit(5, 60000), (req, res) => {
   try {
     const { username, password, nickname } = req.body;
     
@@ -40,7 +66,7 @@ router.post('/register', (req, res) => {
 });
 
 // 登录
-router.post('/login', (req, res) => {
+router.post('/login', rateLimit(10, 60000), (req, res) => {
   try {
     const { username, password } = req.body;
     

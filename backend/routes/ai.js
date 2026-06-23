@@ -3,7 +3,10 @@ const router = express.Router();
 const db = require('../config/db');
 const https = require('https');
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-498bdff1e9974ce89a09fc1a3535f5a3';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+if (!DEEPSEEK_API_KEY) {
+  console.warn('[AI] 未配置 DEEPSEEK_API_KEY 环境变量，AI 功能将使用离线模式');
+}
 const DEEPSEEK_URL = 'api.deepseek.com';
 const MODEL = 'deepseek-chat';
 const MAX_TOKENS = 800;

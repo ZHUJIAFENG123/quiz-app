@@ -3,7 +3,11 @@
  */
 
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'quiz-app-secret-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('[Auth] 致命错误：未配置 JWT_SECRET 环境变量，服务拒绝启动');
+  process.exit(1);
+}
 
 // 生成 Token
 function generateToken(user) {
