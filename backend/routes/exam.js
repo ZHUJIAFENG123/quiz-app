@@ -101,7 +101,7 @@ router.get('/:sessionId/result', (req, res) => {
       LEFT JOIN questions q ON sr.question_id = q.id
       LEFT JOIN chapters c ON q.chapter_id = c.id
       LEFT JOIN subjects s ON q.subject_id = s.id
-      WHERE sr.exam_session_id = ? AND sr.mode = 'exam' AND sr.user_id = ?
+      WHERE sr.exam_session_id = ? AND sr.mode = 'exam' AND (sr.user_id = ? OR sr.user_id IS NULL OR sr.user_id = 0)
       ORDER BY sr.id ASC
     `).all(sessionId, userId);
     

@@ -688,8 +688,7 @@ async function loadQuestions() {
     if (qSubjectFilter.value) params.subject_id = qSubjectFilter.value
     if (qChapterFilter.value) params.chapter_id = qChapterFilter.value
     if (qTypeFilter.value) params.type = qTypeFilter.value
-    const res = await API.getQuestions(params)
-    const data = res.data
+    const data = await API.getQuestions(params)
     questions.value = data.list || []
     qTotal.value = data.total || 0
     qTotalPages.value = data.totalPages || 0

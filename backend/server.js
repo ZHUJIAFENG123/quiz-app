@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿const express = require('express');
+﻿﻿﻿﻿﻿﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { loadDatabase, saveNow } = require('./config/database');
@@ -136,7 +136,7 @@ async function startServer() {
     const forceReset = process.env.RESET_DB === "true";
     // 检查是否选项数据缺失
     const emptyOpts = totalQuestions.count > 0 
-      ? db.prepare("SELECT COUNT(*) as count FROM questions WHERE type IN ('单选题','多选题') AND (option_a IS NULL OR option_a = '')").get()
+      ? db.prepare("SELECT COUNT(*) as count FROM questions WHERE type IN ('单选','多选') AND (option_a IS NULL OR option_a = '')").get()
       : { count: 0 };
 
     if (totalQuestions.count === 0 || forceReset || emptyOpts.count > 0) {
