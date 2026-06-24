@@ -23,7 +23,7 @@ router.get('/', (req, res) => {
     `).get(...params);
     
     const list = db.prepare(`
-      SELECT q.*, c.name as chapter_name, s.name as subject_name, wq.wrong_count, wq.last_wrong_at
+      SELECT q.*, wq.id as wrong_id, wq.question_id, c.name as chapter_name, s.name as subject_name, wq.wrong_count, wq.last_wrong_at
       FROM wrong_questions wq
       JOIN questions q ON wq.question_id = q.id
       LEFT JOIN chapters c ON q.chapter_id = c.id
