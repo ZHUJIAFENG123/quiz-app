@@ -15,7 +15,8 @@ import {
   faFileExport, faFileImport, faRotateLeft, faBars,
   faUser, faTable, faTags, faLightbulb, faExclamationTriangle,
   faShare, faCrown, faMedal, faCalendarDay, faFire,
-  faChartLine, faChartPie, faBroom, faUndo, faArrowRightFromBracket, faPaperPlane
+  faChartLine, faChartPie, faBroom, faUndo, faArrowRightFromBracket, faPaperPlane,
+  faScaleBalanced, faPlay, faCircleHalfStroke
 } from '@fortawesome/free-solid-svg-icons'
 
 import App from './App.vue'
@@ -31,6 +32,7 @@ import Login from './views/Login.vue'
 import Register from './views/Register.vue'
 import Profile from './views/Profile.vue'
 import AIAssistant from './views/AIAssistant.vue'
+import LawAdventure from './views/LawAdventure.vue'
 import './style.css'
 
 // Font Awesome 图标注册
@@ -47,7 +49,8 @@ library.add(
   faFileExport, faFileImport, faRotateLeft, faBars,
   faUser, faTable, faTags, faLightbulb, faExclamationTriangle,
   faShare, faCrown, faMedal, faCalendarDay, faFire,
-  faChartLine, faChartPie, faBroom, faUndo, faArrowRightFromBracket, faPaperPlane
+  faChartLine, faChartPie, faBroom, faUndo, faArrowRightFromBracket, faPaperPlane,
+  faScaleBalanced, faPlay, faCircleHalfStroke
 )
 
 const routes = [
@@ -61,6 +64,7 @@ const routes = [
   { path: '/profile', name: 'Profile', component: Profile, meta: { title: '个人主页' } },
   { path: '/ai', name: 'AIAssistant', component: AIAssistant, meta: { title: 'AI助手' } },
   { path: '/admin', name: 'Admin', component: Admin, meta: { title: '后台管理' } },
+  { path: '/adventure', name: 'LawAdventure', component: LawAdventure, meta: { title: '法海探案' } },
   { path: '/login', name: 'Login', component: Login, meta: { title: '登录' } },
   { path: '/register', name: 'Register', component: Register, meta: { title: '注册' } },
 ]

@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿const express = require('express');
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { loadDatabase, saveNow } = require('./config/database');
@@ -266,6 +266,7 @@ async function startServer() {
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api/ai', require('./routes/ai'));
   app.use('/api/database', require('./routes/database'));
+  app.use('/api/cases', require('./routes/cases').router);
 
   // ============ 数据同步路由 ============
   const { exportData, importData, saveToGitHub } = require('./utils/sync');

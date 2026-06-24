@@ -88,6 +88,14 @@
           <div class="text-xs text-gray-400 mt-0.5">查看收藏的题目</div>
         </button>
         <button
+          @click="$router.push('/adventure')"
+          class="card text-left hover:shadow-md transition-shadow border-l-4 border-amber-500"
+        >
+          <font-awesome-icon icon="scale-balanced" class="text-amber-500 text-xl mb-2" />
+          <div class="font-medium text-gray-800 text-sm">法海探案</div>
+          <div class="text-xs text-gray-400 mt-0.5">案件推理学法律</div>
+        </button>
+        <button
           @click="$router.push('/stats')"
           class="card text-left hover:shadow-md transition-shadow border-l-4 border-teal-500"
         >

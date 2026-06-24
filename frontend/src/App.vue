@@ -65,6 +65,10 @@
           <font-awesome-icon icon="lightbulb" class="text-lg" />
           <span class="text-xs mt-0.5">AI助手</span>
         </router-link>
+        <router-link to="/adventure" class="nav-item" active-class="text-amber-600">
+          <font-awesome-icon icon="scale-balanced" class="text-lg" />
+          <span class="text-xs mt-0.5">探案</span>
+        </router-link>
       </div>
     </nav>
   </div>

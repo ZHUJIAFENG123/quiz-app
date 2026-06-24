@@ -111,6 +111,12 @@ export default {
   aiDiagnose: () => api.post('/ai/diagnose'),
   aiChat: (message, history) => api.post('/ai/chat', { message, history }),
 
+  // 法海探案
+  getCases: () => api.get('/cases'),
+  getCaseDetail: (id) => api.get(`/cases/${id}`),
+  judgeCase: (id, choice) => api.post(`/cases/${id}/judge`, { choice }),
+  resetCase: (id) => api.post(`/cases/${id}/reset`),
+
   register: (username, password, nickname) => api.post('/auth/register', { username, password, nickname }),
   getMe: () => api.get('/auth/me'),
   logout: () => {
