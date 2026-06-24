@@ -8,6 +8,8 @@ cd /d "%~dp0backend"
 
 echo [1/2] 启动后端服务器 (端口 8080)...
 set NODE_ENV=production
+set JWT_SECRET=quiz-jwt-secret-2026
+set DEEPSEEK_API_KEY=sk-84ed5a46886c468883a32b91e2da56d9
 start "刷题宝典-后端" cmd /c "node server.js"
 
 echo 等待服务启动...
