@@ -678,7 +678,8 @@ async function getAIAnalysis() {
   aiContent.value = ''
   aiQuestionId.value = q.id
   try {
-    const res = await API.aiAnalyze(q.id)
+    const userAnswer = userAnswers[q.id] || ''
+    const res = await API.aiQuickAnalyze(q.id, String(userAnswer))
     if (aiQuestionId.value === q.id) aiContent.value = res.content
   } catch {
     if (aiQuestionId.value === q.id) aiContent.value = 'AI解析暂时不可用，请稍后再试'

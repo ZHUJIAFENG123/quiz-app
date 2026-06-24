@@ -108,8 +108,11 @@ export default {
 
   // AI
   aiAnalyze: (questionId) => api.post('/ai/analyze', { question_id: questionId }),
+  aiQuickAnalyze: (questionId, userAnswer) => api.post('/ai/quick-analyze', { question_id: questionId, user_answer: userAnswer }),
   aiDiagnose: () => api.post('/ai/diagnose'),
   aiChat: (message, history) => api.post('/ai/chat', { message, history }),
+  aiChatStreamUrl: () => '/api/ai/chat/stream',
+  aiAnalyzeStreamUrl: () => '/api/ai/analyze/stream',
 
   // 法海探案
   getCases: () => api.get('/cases'),

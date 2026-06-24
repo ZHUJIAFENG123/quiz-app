@@ -240,16 +240,54 @@ async function sendMessage() {
   saveHistory()
   scrollToBottom()
 
+  // 插入空的 assistant 消息用于流式填充
+  const aiMsg = { role: 'assistant', content: '' }
+  messages.value.push(aiMsg)
+
   aiLoading.value = true
   try {
     const history = messages.value
-      .slice(-12, -1)
+      .slice(-14, -1)
+      .filter(m => m.role !== 'assistant' || m.content)
       .filter(isValidMessage)
       .map(m => ({ role: m.role, content: m.content }))
-    const res = await API.aiChat(buildModePrompt(text), history)
-    messages.value.push({ role: 'assistant', content: res.content || '我没有生成有效回答，请换个问法再试一次。' })
+
+    const token = localStorage.getItem('quiz_token')
+    const res = await fetch('/api/ai/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ message: buildModePrompt(text), history })
+    })
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6).trim()
+          if (data === '[DONE]') break
+          try {
+            const json = JSON.parse(data)
+            if (json.error) { aiMsg.content = json.error; break }
+            if (json.content) {
+              aiMsg.content += json.content
+              scrollToBottom()
+              saveHistory()
+            }
+          } catch {}
+        }
+      }
+    }
+    if (!aiMsg.content) aiMsg.content = 'AI 没有返回有效内容，请重试。'
   } catch (e) {
-    messages.value.push({ role: 'assistant', content: buildErrorMessage(e) })
+    aiMsg.content = buildErrorMessage(e)
   } finally {
     aiLoading.value = false
     saveHistory()

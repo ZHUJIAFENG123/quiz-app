@@ -145,7 +145,18 @@
             </span>
           </div>
           <div v-if="item.analysis" class="bg-blue-50 rounded-lg px-3 py-2 text-sm text-blue-800">
-            <span class="font-medium">📖 解析：</span>{{ item.analysis }}
+            <span class="font-medium">解析：</span>{{ item.analysis }}
+          </div>
+          <!-- AI 解析 -->
+          <div class="mt-2 pt-2 border-t border-gray-100">
+            <button v-if="aiLoadingId !== item.id" @click="getAIAnalysis(item)" class="flex items-center gap-1 text-xs text-yellow-600 hover:text-yellow-700 font-medium">
+              <font-awesome-icon icon="lightbulb" /> AI 深度解析
+            </button>
+            <div v-if="aiLoadingId === item.id" class="flex items-center gap-2 text-xs text-gray-400">
+              <div class="animate-spin w-3 h-3 border border-yellow-500 border-t-transparent rounded-full"></div>
+              AI正在分析...
+            </div>
+            <div v-if="aiContents[item.id]" class="bg-yellow-50 rounded-lg p-2.5 mt-1 text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{{ aiContents[item.id] }}</div>
           </div>
         </div>
       </div>
@@ -309,6 +320,23 @@ function goPage(p) {
   currentPage.value = p
   loadData()
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// AI 解析
+const aiLoadingId = ref(null)
+const aiContents = reactive({})
+
+async function getAIAnalysis(item) {
+  if (aiLoadingId.value) return
+  aiLoadingId.value = item.id
+  try {
+    const res = await API.aiQuickAnalyze(item.question_id || item.id, item.user_answer || '')
+    aiContents[item.id] = res.content
+  } catch {
+    aiContents[item.id] = 'AI解析暂时不可用，请稍后再试'
+  } finally {
+    aiLoadingId.value = null
+  }
 }
 
 function getTypeLabel(type) {
