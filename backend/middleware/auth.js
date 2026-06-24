@@ -3,10 +3,10 @@
  */
 
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('[Auth] 致命错误：未配置 JWT_SECRET 环境变量，服务拒绝启动');
-  process.exit(1);
+const crypto = require('crypto');
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.JWT_SECRET) {
+  console.warn('[Auth] ⚠️ 未配置 JWT_SECRET 环境变量，已使用随机密钥（重启后所有用户需重新登录）');
 }
 
 // 生成 Token
