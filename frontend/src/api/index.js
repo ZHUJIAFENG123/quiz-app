@@ -45,6 +45,7 @@ export default {
   updateChapter: (id, data) => api.put(`/chapters/${id}`, data),
   deleteChapter: (id) => api.delete(`/chapters/${id}`),
   getChapterQuestionCount: (id) => api.get(`/chapters/${id}/question-count`),
+  getChapterCounts: (params) => api.get('/chapters/counts', { params }),
 
   // 题目
   getQuestions: (params) => api.get('/questions', { params }),
@@ -63,6 +64,7 @@ export default {
   // 考试
   generateExam: (data) => api.post('/exam/generate', data),
   submitExamAnswer: (sessionId, data) => api.post(`/exam/${sessionId}/answer`, data),
+  submitExamAll: (sessionId, data) => api.post(`/exam/${sessionId}/submit-all`, data),
   getExamResult: (sessionId) => api.get(`/exam/${sessionId}/result`),
 
   // 学习统计

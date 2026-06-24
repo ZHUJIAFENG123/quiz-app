@@ -638,7 +638,7 @@ const qFormSaving = ref(false)
 const qForm = reactive({
   subject_id: '',
   chapter_id: '',
-  type: 'single',
+  type: '单选',
   content: '',
   option_a: '',
   option_b: '',
@@ -718,12 +718,12 @@ function qGoPage(p) {
 }
 
 function qTypeLabel(type) {
-  const map = { single: '单选', multi: '多选', judge: '判断' }
+  const map = { '单选': '单选', '多选': '多选', '判断': '判断' }
   return map[type] || type
 }
 
 function qTypeClass(type) {
-  const map = { single: 'tag-single', multi: 'tag-multi', judge: 'tag-judge' }
+  const map = { '单选': 'tag-single', '多选': 'tag-multi', '判断': 'tag-judge' }
   return map[type] || ''
 }
 
@@ -815,7 +815,7 @@ async function loadDbInfo() {
   dbInfoLoading.value = true
   try {
     const res = await API.getDatabaseInfo()
-    dbInfo.value = res.data || { tables: {} }
+    dbInfo.value = res || { tables: {} }
   } catch (e) { dbInfo.value = { tables: {} } } finally {
     dbInfoLoading.value = false
   }

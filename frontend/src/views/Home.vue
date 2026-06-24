@@ -202,17 +202,20 @@ async function toggleSubject(subjectId) {
   try {
     const chapters = await API.getChapters({ subject_id: subjectId })
     subjectChapters[subjectId] = chapters || []
-    // 获取每个章节的题目数量
-    for (const ch of subjectChapters[subjectId]) {
-      try {
-        const counts = await API.getChapterQuestionCount(ch.id)
-        if (counts) {
-          ch.single_count = counts.single_count ?? 0
-          ch.multi_count = counts.multi_count ?? 0
-          ch.judge_count = counts.judge_count ?? 0
+    // 批量获取所有章节题目数量（避免N+1查询）
+    try {
+      const counts = await API.getChapterCounts({ subject_id: subjectId })
+      if (counts) {
+        for (const ch of subjectChapters[subjectId]) {
+          const c = counts[ch.id]
+          if (c) {
+            ch.single_count = c.single_count ?? 0
+            ch.multi_count = c.multi_count ?? 0
+            ch.judge_count = c.judge_count ?? 0
+          }
         }
-      } catch { /* 跳过 */ }
-    }
+      }
+    } catch { /* 跳过 */ }
   } catch {
     subjectChapters[subjectId] = []
   } finally {

@@ -226,8 +226,8 @@ const accuracyBarClass = computed(() => {
 })
 
 const formatTime = computed(() => {
-  const t = result.value?.time_taken
-  if (!t) return '0分'
+  const t = result.value?.time_taken || Number(route.query.time) || 0
+  if (!t) return '0秒'
   if (typeof t === 'number') {
     const m = Math.floor(t / 60)
     const s = t % 60

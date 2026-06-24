@@ -22,6 +22,34 @@ router.get('/', (req, res) => {
   }
 });
 
+// 批量获取所有章节题目数量（避免N+1查询）
+router.get('/counts', (req, res) => {
+  try {
+    const subjectId = req.query.subject_id;
+    let where = '';
+    let params = [];
+    if (subjectId) { where = 'WHERE chapter_id IN (SELECT id FROM chapters WHERE subject_id = ?)'; params.push(subjectId); }
+    
+    const counts = db.prepare(`
+      SELECT chapter_id, type, COUNT(*) as count 
+      FROM questions ${where}
+      GROUP BY chapter_id, type
+    `).all(...params);
+    
+    const result = {};
+    for (const row of counts) {
+      if (!result[row.chapter_id]) result[row.chapter_id] = { single_count: 0, multi_count: 0, judge_count: 0, total: 0 };
+      if (row.type === '单选') result[row.chapter_id].single_count = row.count;
+      if (row.type === '多选') result[row.chapter_id].multi_count = row.count;
+      if (row.type === '判断') result[row.chapter_id].judge_count = row.count;
+      result[row.chapter_id].total += row.count;
+    }
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // 获取单个章节
 router.get('/:id', (req, res) => {
   try {

@@ -88,6 +88,68 @@ router.post('/:sessionId/answer', (req, res) => {
   }
 });
 
+// 批量提交考试答案
+router.post('/:sessionId/submit-all', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { answers } = req.body;
+    const userId = req.userId || 0;
+    
+    if (!answers || !Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({ success: false, message: '请提交答案数据' });
+    }
+    
+    const prefetchIds = answers.map(a => a.question_id);
+    const placeholders = prefetchIds.map(() => '?').join(',');
+    const questions = {};
+    const qrows = db.prepare(`SELECT * FROM questions WHERE id IN (${placeholders})`).all(...prefetchIds);
+    for (const q of qrows) questions[q.id] = q;
+    
+    const insertStudy = db.prepare(
+      'INSERT INTO study_records (question_id, user_answer, is_correct, mode, exam_session_id, user_id) VALUES (?, ?, ?, ?, ?, ?)'
+    );
+    const getWrong = db.prepare('SELECT * FROM wrong_questions WHERE question_id = ? AND user_id = ?');
+    const updateWrong = db.prepare('UPDATE wrong_questions SET wrong_count = wrong_count + 1, last_wrong_at = CURRENT_TIMESTAMP WHERE question_id = ? AND user_id = ?');
+    const insertWrong = db.prepare('INSERT INTO wrong_questions (question_id, user_id) VALUES (?, ?)');
+    
+    let correctCount = 0;
+    const batch = db.transaction(() => {
+      for (const ans of answers) {
+        const question = questions[ans.question_id];
+        if (!question) continue;
+        
+        let isCorrect = false;
+        if (question.type === '多选') {
+          const corrects = question.answer.split(',').map(a => a.trim()).sort().join('');
+          const userAnswers = String(ans.user_answer).split(',').map(a => a.trim()).sort().join('');
+          isCorrect = corrects === userAnswers;
+        } else {
+          isCorrect = question.answer.trim() === String(ans.user_answer).trim();
+        }
+        
+        insertStudy.run(ans.question_id, String(ans.user_answer), isCorrect ? 1 : 0, 'exam', sessionId, userId);
+        
+        if (isCorrect) {
+          correctCount++;
+        } else {
+          const existing = getWrong.get(ans.question_id, userId);
+          if (existing) {
+            updateWrong.run(ans.question_id, userId);
+          } else {
+            insertWrong.run(ans.question_id, userId);
+          }
+        }
+      }
+    });
+    
+    batch();
+    
+    res.json({ success: true, data: { total: answers.length, correct: correctCount } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // 获取考试结果
 router.get('/:sessionId/result', (req, res) => {
   try {

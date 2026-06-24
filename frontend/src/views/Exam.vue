@@ -262,6 +262,7 @@ const currentIndex = ref(0)
 const examAnswers = reactive({})
 const sessionId = ref(null)
 const totalSeconds = ref(0)
+const examStartTime = ref(0)
 const timerInterval = ref(null)
 const showSubmitConfirm = ref(false)
 const submitting = ref(false)
@@ -336,6 +337,7 @@ async function startExam() {
     sessionId.value = data.session_id
     examQuestions.value = data.questions || []
     totalSeconds.value = (setup.duration || data.duration || 45) * 60
+    examStartTime.value = Date.now()
     examStarted.value = true
     currentIndex.value = 0
     // 清空答案
@@ -441,19 +443,22 @@ async function submitExam() {
   clearInterval(timerInterval.value)
   
   try {
-    // 并行提交所有已作答的题目
-    const promises = examQuestions.value
+    // 批量提交所有已作答的题目
+    const answers = examQuestions.value
       .filter(q => examAnswers[q.id] !== undefined)
-      .map(q => {
-        const userAnswer = Array.isArray(examAnswers[q.id]) ? examAnswers[q.id].join(',') : String(examAnswers[q.id])
-        return API.submitExamAnswer(sessionId.value, { question_id: q.id, user_answer: userAnswer }).catch(() => {})
-      })
-    await Promise.all(promises)
+      .map(q => ({
+        question_id: q.id,
+        user_answer: Array.isArray(examAnswers[q.id]) ? examAnswers[q.id].join(',') : String(examAnswers[q.id])
+      }));
+    if (answers.length > 0) {
+      await API.submitExamAll(sessionId.value, { answers });
+    }
     // 后台同步到云端（静默）
     API.syncToCloud().catch(() => {})
   } finally {
     submitting.value = false
-    router.push(`/exam/result/${sessionId.value}`)
+    const timeTaken = Math.round((Date.now() - examStartTime.value) / 1000)
+    router.push(`/exam/result/${sessionId.value}?time=${timeTaken}`)
   }
 }
 </script>
