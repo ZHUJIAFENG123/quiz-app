@@ -3,12 +3,13 @@ const router = express.Router();
 const db = require('../config/db');
 const https = require('https');
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-if (!DEEPSEEK_API_KEY) {
-  console.warn('[AI] 未配置 DEEPSEEK_API_KEY 环境变量，AI 功能将使用离线模式');
+const AI_API_KEY = process.env.AI_API_KEY || 'sk-ws-H.RYDIXER.Ylxh.MEQCID6ECy_SEnout4odi9AhL_3ZCObrzepxgeUUEGNDqIJUAiA6-lCzw23105IdlH9TsYmKAzpSvX8tqyGumLtyWr__Qw';
+if (!process.env.AI_API_KEY) {
+  console.warn('[AI] 未配置 AI_API_KEY 环境变量，使用默认千问Key');
 }
-const DEEPSEEK_URL = 'api.deepseek.com';
-const MODEL = 'deepseek-chat';
+const AI_URL = 'dashscope.aliyuncs.com';
+const AI_PATH = '/compatible-mode/v1/chat/completions';
+const MODEL = 'qwen-turbo';
 const MAX_TOKENS = 1200;
 const TEMPERATURE = 0.7;
 
@@ -36,17 +37,17 @@ function sanitizeHistory(history) {
 }
 
 function hasApiKey() {
-  return Boolean(DEEPSEEK_API_KEY && DEEPSEEK_API_KEY.startsWith('sk-'));
+  return Boolean(AI_API_KEY && AI_API_KEY.startsWith('sk-'));
 }
 
 // ===== 非流式调用 =====
-function callDeepSeek(messages) {
+function callAI(messages) {
   return new Promise((resolve, reject) => {
     if (!hasApiKey()) { reject(new Error('AI 服务未配置')); return; }
     const body = JSON.stringify({ model: MODEL, messages, max_tokens: MAX_TOKENS, temperature: TEMPERATURE, stream: false });
     const req = https.request({
-      hostname: DEEPSEEK_URL, path: '/v1/chat/completions', method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${DEEPSEEK_API_KEY}`, 'Content-Length': Buffer.byteLength(body) },
+      hostname: AI_URL, path: AI_PATH, method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AI_API_KEY}`, 'Content-Length': Buffer.byteLength(body) },
       timeout: 60000
     }, response => {
       let data = '';
@@ -67,7 +68,7 @@ function callDeepSeek(messages) {
 }
 
 // ===== 流式调用 =====
-function callDeepSeekStream(messages, res) {
+function callAIStream(messages, res) {
   if (!hasApiKey()) {
     res.write(`data: ${JSON.stringify({ error: 'AI 服务未配置' })}\n\n`);
     res.end();
@@ -75,8 +76,8 @@ function callDeepSeekStream(messages, res) {
   }
   const body = JSON.stringify({ model: MODEL, messages, max_tokens: MAX_TOKENS, temperature: TEMPERATURE, stream: true });
   const apiReq = https.request({
-    hostname: DEEPSEEK_URL, path: '/v1/chat/completions', method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${DEEPSEEK_API_KEY}`, 'Content-Length': Buffer.byteLength(body) },
+    hostname: AI_URL, path: AI_PATH, method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${AI_API_KEY}`, 'Content-Length': Buffer.byteLength(body) },
     timeout: 60000
   }, apiRes => {
     let buffer = '';
@@ -156,13 +157,13 @@ router.post('/chat/stream', (req, res) => {
   ];
 
   if (!hasApiKey()) {
-    res.write(`data: ${JSON.stringify({ content: 'AI 服务未配置 API Key，请在环境变量中设置 DEEPSEEK_API_KEY。' })}\n\n`);
+    res.write(`data: ${JSON.stringify({ content: 'AI 服务未配置 API Key，请在环境变量中设置 AI_API_KEY。' })}\n\n`);
     res.write('data: [DONE]\n\n');
     res.end();
     return;
   }
 
-  callDeepSeekStream(messages, res);
+  callAIStream(messages, res);
 });
 
 // ===== 流式题目解析 =====
@@ -234,7 +235,7 @@ router.post('/analyze/stream', (req, res) => {
     return originalEnd();
   };
 
-  callDeepSeekStream(messages, res);
+  callAIStream(messages, res);
 });
 
 // ===== 一键解析（非流式，供弹窗使用） =====
@@ -265,7 +266,7 @@ router.post('/quick-analyze', (req, res) => {
     if (userAnswer) prompt += `\n用户答案：${userAnswer}`;
     prompt += `\n\n请按"考点定位→答案依据→易错陷阱→记忆方法"的结构简洁回答。`;
 
-    callDeepSeek([
+    callAI([
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: prompt }
     ]).then(content => {
@@ -313,7 +314,7 @@ router.post('/analyze', async (req, res) => {
 请按"考点定位、答案依据、易错陷阱、记忆/复盘建议"的结构回答。`;
 
     let content;
-    try { content = await callDeepSeek([{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userMessage }]); }
+    try { content = await callAI([{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userMessage }]); }
     catch { content = localAnalysis(question, ''); }
 
     db.prepare('INSERT OR REPLACE INTO ai_cache (question_id, type, content) VALUES (?, ?, ?)').run(questionId, 'analyze', content);
@@ -344,7 +345,7 @@ router.post('/diagnose', async (req, res) => {
     const prompt = `错题诊断：${wrongs.length}道错题。题型：${formatCnt(typeCount)}。章节：${formatCnt(chapterCount)}。代表：${examples}\n输出：1.薄弱点 2.错误原因 3.3天复习安排 4.提醒。`;
 
     let content;
-    try { content = await callDeepSeek([{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }]); }
+    try { content = await callAI([{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: prompt }]); }
     catch {
       const top = Object.entries(chapterCount).sort((a,b) => b[1]-a[1])[0];
       content = `**错题概览**：${wrongs.length}道，${formatCnt(typeCount)}。\n**薄弱位置**：${top?.[0] || '未分类'} ${top?.[1]||0}道。\n**建议**：重做错题→同章节新题→连续3次答对后移除。`;
@@ -361,7 +362,7 @@ router.post('/chat', async (req, res) => {
     const messages = [{ role: 'system', content: SYSTEM_PROMPT }, ...sanitizeHistory(req.body.history), { role: 'user', content: message }];
 
     let content;
-    try { content = await callDeepSeek(messages); }
+    try { content = await callAI(messages); }
     catch (e) {
       if (!hasApiKey()) {
         content = 'AI 服务未配置 API Key。\n1. 贴题干+选项+答案，我帮你拆解。\n2. 错因归类：概念不清/审题遗漏/记忆混淆。\n3. 同类题连续对3道才算掌握。';

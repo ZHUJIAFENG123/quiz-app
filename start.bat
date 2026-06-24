@@ -20,7 +20,7 @@ echo 前端依赖安装完成!
 echo.
 echo [3/4] 启动后端服务 (端口: 8080)...
 set JWT_SECRET=quiz-jwt-secret-2026
-set DEEPSEEK_API_KEY=sk-84ed5a46886c468883a32b91e2da56d9
+set AI_API_KEY=sk-ws-H.RYDIXER.Ylxh.MEQCID6ECy_SEnout4odi9AhL_3ZCObrzepxgeUUEGNDqIJUAiA6-lCzw23105IdlH9TsYmKAzpSvX8tqyGumLtyWr__Qw
 cd ..\backend
 start "刷题宝典-后端" cmd /c "node server.js"
 
