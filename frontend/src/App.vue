@@ -1,28 +1,27 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- 后台管理不显示底部导航 -->
+    <!-- 后台管理不显示导航 -->
     <div v-if="!isAdminRoute" class="pb-16">
-      <!-- 顶部用户栏 -->
-      <div class="bg-white border-b border-gray-100 px-4 py-2 flex items-center justify-between">
-        <router-link to="/" class="flex items-center gap-2">
-          <img src="/logo.png" alt="logo" class="w-6 h-6 rounded" />
-          <span class="text-sm font-semibold text-primary-600">刷题宝典</span>
+      <!-- 顶部栏 -->
+      <header class="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-3 flex items-center justify-between shadow-md">
+        <router-link to="/" class="flex items-center gap-2.5">
+          <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+            <font-awesome-icon icon="book" class="text-white text-sm" />
+          </div>
+          <span class="font-bold text-base tracking-wide">学法宝典</span>
         </router-link>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <template v-if="currentUser">
-            <router-link to="/profile" class="text-xs text-gray-500 hover:text-primary-600">{{ currentUser.nickname || currentUser.username }}</router-link>
-            <button @click="doLogout" class="text-xs text-gray-400 hover:text-red-500">退出</button>
+            <router-link to="/profile" class="text-white/80 hover:text-white text-xs flex items-center gap-1">
+              <font-awesome-icon icon="user" class="text-xs" />
+              {{ currentUser.nickname || currentUser.username }}
+            </router-link>
           </template>
           <template v-else>
-            <router-link to="/login" class="text-xs text-gray-500 hover:text-primary-600">登录</router-link>
-            <span class="text-gray-300 text-xs">|</span>
-            <router-link to="/register" class="text-xs text-gray-500 hover:text-primary-600">注册</router-link>
+            <router-link to="/login" class="text-white/80 hover:text-white text-sm">登录</router-link>
           </template>
-          <router-link to="/profile" class="text-gray-400 hover:text-primary-600 ml-1">
-            <font-awesome-icon icon="user" class="text-sm" />
-          </router-link>
         </div>
-      </div>
+      </header>
       
       <router-view v-slot="{ Component }">
         <transition name="fade" mode="out-in">
@@ -39,35 +38,29 @@
     </div>
     
     <!-- 底部导航栏 -->
-    <nav v-if="!isAdminRoute" class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50 safe-area-bottom">
+    <nav v-if="!isAdminRoute" class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50 safe-bottom shadow-lg">
       <div class="flex justify-around items-center h-14 max-w-lg mx-auto">
-        <router-link to="/" class="nav-item" exact-active-class="text-primary-600">
-          <font-awesome-icon icon="home" class="text-lg" />
-          <span class="text-xs mt-0.5">首页</span>
+        <router-link to="/" class="nav-item" exact-active-class="!text-primary-600">
+          <font-awesome-icon icon="home" class="text-xl" />
+          <span class="text-[10px] mt-0.5">首页</span>
         </router-link>
-        <router-link to="/practice" class="nav-item" active-class="text-primary-600">
-          <font-awesome-icon icon="pen-to-square" class="text-lg" />
-          <span class="text-xs mt-0.5">练习</span>
+        <router-link to="/adventure" class="nav-item" active-class="!text-amber-600">
+          <font-awesome-icon icon="scale-balanced" class="text-xl" />
+          <span class="text-[10px] mt-0.5">探案</span>
         </router-link>
-        <router-link to="/exam" class="nav-item" active-class="text-primary-600">
-          <font-awesome-icon icon="file-pen" class="text-lg" />
-          <span class="text-xs mt-0.5">考试</span>
+        <router-link to="/practice" class="nav-item" active-class="!text-primary-600">
+          <div class="relative">
+            <font-awesome-icon icon="pen-to-square" class="text-xl" />
+          </div>
+          <span class="text-[10px] mt-0.5">刷题</span>
         </router-link>
-        <router-link to="/wrong" class="nav-item" active-class="text-primary-600">
-          <font-awesome-icon icon="circle-xmark" class="text-lg" />
-          <span class="text-xs mt-0.5">错题</span>
+        <router-link to="/ai" class="nav-item" active-class="!text-violet-600">
+          <font-awesome-icon icon="lightbulb" class="text-xl" />
+          <span class="text-[10px] mt-0.5">AI学</span>
         </router-link>
-        <router-link to="/favorites" class="nav-item" active-class="text-primary-600">
-          <font-awesome-icon icon="heart" class="text-lg" />
-          <span class="text-xs mt-0.5">收藏</span>
-        </router-link>
-        <router-link to="/ai" class="nav-item" active-class="text-primary-600">
-          <font-awesome-icon icon="lightbulb" class="text-lg" />
-          <span class="text-xs mt-0.5">AI助手</span>
-        </router-link>
-        <router-link to="/adventure" class="nav-item" active-class="text-amber-600">
-          <font-awesome-icon icon="scale-balanced" class="text-lg" />
-          <span class="text-xs mt-0.5">探案</span>
+        <router-link to="/profile" class="nav-item" active-class="!text-primary-600">
+          <font-awesome-icon icon="user" class="text-xl" />
+          <span class="text-[10px] mt-0.5">我的</span>
         </router-link>
       </div>
     </nav>
@@ -76,10 +69,9 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const router = useRouter()
 const isAdminRoute = computed(() => route.path.startsWith('/admin'))
 
 const currentUser = ref(getUser())
@@ -91,25 +83,17 @@ function getUser() {
   } catch { return null }
 }
 
-// 更新用户信息的辅助函数
 function checkUser() { currentUser.value = getUser() }
 window.addEventListener('storage', checkUser)
 
 watch(() => route.path, () => {
   currentUser.value = getUser()
 })
-
-function doLogout() {
-  localStorage.removeItem('quiz_token')
-  localStorage.removeItem('quiz_user')
-  currentUser.value = null
-  window.location.href = '/'
-}
 </script>
 
 <style scoped>
 .nav-item {
-  @apply flex flex-col items-center justify-center text-gray-500 transition-colors duration-200;
+  @apply flex flex-col items-center justify-center text-gray-400 transition-colors duration-200;
 }
 .fade-enter-active, .fade-leave-active {
   transition: opacity 0.15s ease;
@@ -117,7 +101,7 @@ function doLogout() {
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
 }
-.safe-area-bottom {
+.safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
 </style>
