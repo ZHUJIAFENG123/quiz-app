@@ -7,7 +7,7 @@
 const https = require('https');
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
-const REPO = 'ZHUJIAFENG123/quiz-app';
+const REPO = process.env.GITHUB_REPO || '';
 const SYNC_FILE = 'backend/data/user_data.json';
 const API_HOST = 'api.github.com';
 const RAW_HOST = 'raw.githubusercontent.com';
@@ -133,6 +133,7 @@ function httpsRequest(options, body) {
 // ===== 保存到 GitHub =====
 async function saveToGitHub(jsonData) {
   if (!GITHUB_TOKEN) throw new Error('未配置 GITHUB_TOKEN 环境变量');
+  if (!REPO) throw new Error('未配置 GITHUB_REPO 环境变量');
 
   const content = Buffer.from(JSON.stringify(jsonData, null, 2)).toString('base64');
 
@@ -175,8 +176,8 @@ async function saveToGitHub(jsonData) {
 
 // ===== 从 GitHub 恢复 =====
 async function loadFromGitHub() {
-  if (!GITHUB_TOKEN) {
-    console.log('[同步] 未配置 GITHUB_TOKEN，跳过数据恢复');
+  if (!GITHUB_TOKEN || !REPO) {
+    console.log('[同步] 未配置 GITHUB_TOKEN 或 GITHUB_REPO，跳过数据恢复');
     return null;
   }
 

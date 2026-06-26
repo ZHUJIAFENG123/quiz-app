@@ -8,8 +8,8 @@ cd /d "%~dp0backend"
 
 echo [1/2] 启动后端服务器 (端口 8080)...
 set NODE_ENV=production
-set JWT_SECRET=quiz-jwt-secret-2026
-set AI_API_KEY=sk-ws-H.RYDIXER.Ylxh.MEQCID6ECy_SEnout4odi9AhL_3ZCObrzepxgeUUEGNDqIJUAiA6-lCzw23105IdlH9TsYmKAzpSvX8tqyGumLtyWr__Qw
+REM 请在 backend/.env 中配置 JWT_SECRET 和 AI_API_KEY
+REM 参考 backend/.env.example 文件
 start "刷题宝典-后端" cmd /c "node server.js"
 
 echo 等待服务启动...

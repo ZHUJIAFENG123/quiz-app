@@ -1,4 +1,5 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿const express = require('express');
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿require('dotenv').config();
+const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { loadDatabase, saveNow } = require('./config/database');
@@ -229,7 +230,7 @@ async function startServer() {
 
   // 中间件
   const allowedOrigins = process.env.NODE_ENV === 'production' 
-    ? [process.env.CORS_ORIGIN || 'https://quiz-app-production-17b8.up.railway.app']
+    ? [process.env.CORS_ORIGIN || 'http://localhost:3000']
     : ['http://localhost:5173', 'http://localhost:8080'];
   app.use(cors({
     origin: (origin, callback) => {

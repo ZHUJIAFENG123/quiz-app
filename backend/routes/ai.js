@@ -3,9 +3,9 @@ const router = express.Router();
 const db = require('../config/db');
 const https = require('https');
 
-const AI_API_KEY = process.env.AI_API_KEY || 'sk-ws-H.RYDIXER.Ylxh.MEQCID6ECy_SEnout4odi9AhL_3ZCObrzepxgeUUEGNDqIJUAiA6-lCzw23105IdlH9TsYmKAzpSvX8tqyGumLtyWr__Qw';
-if (!process.env.AI_API_KEY) {
-  console.warn('[AI] 未配置 AI_API_KEY 环境变量，使用默认千问Key');
+const AI_API_KEY = process.env.AI_API_KEY || '';
+if (!AI_API_KEY) {
+  console.warn('[AI] ⚠️ 未配置 AI_API_KEY 环境变量，AI 功能将使用本地降级分析。请在 .env 中设置 AI_API_KEY。');
 }
 const AI_URL = 'dashscope.aliyuncs.com';
 const AI_PATH = '/compatible-mode/v1/chat/completions';

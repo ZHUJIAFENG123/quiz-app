@@ -19,8 +19,8 @@ echo 前端依赖安装完成!
 
 echo.
 echo [3/4] 启动后端服务 (端口: 8080)...
-set JWT_SECRET=quiz-jwt-secret-2026
-set AI_API_KEY=sk-ws-H.RYDIXER.Ylxh.MEQCID6ECy_SEnout4odi9AhL_3ZCObrzepxgeUUEGNDqIJUAiA6-lCzw23105IdlH9TsYmKAzpSvX8tqyGumLtyWr__Qw
+REM 请在 backend/.env 中配置 JWT_SECRET 和 AI_API_KEY
+REM 参考 backend/.env.example 文件
 cd ..\backend
 start "刷题宝典-后端" cmd /c "node server.js"
 
