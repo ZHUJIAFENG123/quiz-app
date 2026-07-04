@@ -281,7 +281,30 @@ function chapterScoreColor(cs) {
 
 onMounted(async () => {
   try {
-    result.value = await API.getExamResult(sessionId)
+    // 智能组卷结果从 localStorage 读取
+    if (sessionId.startsWith('smart_') || route.query.smart === '1') {
+      const stored = localStorage.getItem(`smart_exam_${sessionId}`)
+      if (stored) {
+        const data = JSON.parse(stored)
+        result.value = {
+          score: data.accuracy || 0,
+          total: data.total || 0,
+          correct: data.correct || 0,
+          wrong: (data.total || 0) - (data.correct || 0),
+          time_taken: data.time_taken || 0,
+          details: (data.details || []).map(d => ({
+            ...d,
+            option_a: '', option_b: '', option_c: '', option_d: ''
+          })),
+          chapter_scores: [],
+          mode: 'smart'
+        }
+      } else {
+        errorMsg.value = '智能组卷结果未找到'
+      }
+    } else {
+      result.value = await API.getExamResult(sessionId)
+    }
   } catch (e) {
     errorMsg.value = '加载成绩失败，请确认考试记录是否存在'
   } finally {

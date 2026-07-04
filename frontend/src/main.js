@@ -33,6 +33,7 @@ import Register from './views/Register.vue'
 import Profile from './views/Profile.vue'
 import AIAssistant from './views/AIAssistant.vue'
 import LawAdventure from './views/LawAdventure.vue'
+import KnowledgeGraph from './views/KnowledgeGraph.vue'
 import './style.css'
 
 // Font Awesome 图标注册
@@ -63,6 +64,7 @@ const routes = [
   { path: '/stats', name: 'Stats', component: Stats, meta: { title: '学习统计' } },
   { path: '/profile', name: 'Profile', component: Profile, meta: { title: '个人主页' } },
   { path: '/ai', name: 'AIAssistant', component: AIAssistant, meta: { title: 'AI助手' } },
+  { path: '/knowledge-graph', name: 'KnowledgeGraph', component: KnowledgeGraph, meta: { title: '知识图谱' } },
   { path: '/admin', name: 'Admin', component: Admin, meta: { title: '后台管理' } },
   { path: '/adventure', name: 'LawAdventure', component: LawAdventure, meta: { title: '法海探案' } },
   { path: '/login', name: 'Login', component: Login, meta: { title: '登录' } },

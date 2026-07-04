@@ -114,6 +114,44 @@ export default {
   aiChatStreamUrl: () => '/api/ai/chat/stream',
   aiAnalyzeStreamUrl: () => '/api/ai/analyze/stream',
 
+  // RAG
+  ragSearch: (query, options = {}) => api.post('/ai/rag/search', { query, ...options }),
+  ragStatus: () => api.get('/ai/rag/status'),
+  ragReindex: (force = false) => api.post('/ai/rag/reindex', { force }),
+
+  // Agent
+  agentChat: (message, history) => api.post('/ai/agent/chat', { message, history }),
+  agentTools: () => api.get('/ai/agent/tools'),
+  agentStreamUrl: () => '/api/ai/agent/chat/stream',
+
+  // AI 可观测性
+  aiDashboard: (period = '24h') => api.get('/ai-observability/dashboard', { params: { period } }),
+  aiTemplates: (period = '7d') => api.get('/ai-observability/templates', { params: { period } }),
+  aiTraces: (limit = 20) => api.get('/ai-observability/traces', { params: { limit } }),
+
+  // 评估与治理
+  aiFeedback: (data) => api.post('/ai/feedback', data),
+  aiEvaluation: (period = '7d') => api.get('/ai/evaluation', { params: { period } }),
+  aiABTests: () => api.get('/ai/ab-tests'),
+  aiABTestResult: (promptId, period = '7d') => api.get(`/ai/ab-test/${promptId}`, { params: { period } }),
+  aiCostSummary: (days = 7) => api.get('/ai/cost-summary', { params: { days } }),
+  aiCircuitStatus: () => api.get('/ai/circuit-status'),
+  aiRateLimitStatus: () => api.get('/ai/rate-limit-status'),
+
+  // 知识图谱
+  getKnowledgeGraph: () => api.get('/ai/knowledge-graph'),
+  getAIGraph: (subjectId) => api.post('/ai/knowledge-graph/ai', { subject_id: subjectId }),
+
+  // AI智能组卷
+  generateSmartExam: (data) => api.post('/ai/smart-exam', data),
+  getUserProfile: () => api.get('/ai/user-profile'),
+
+  // 学习路径
+  getLearningMastery: () => api.get('/ai/learning/mastery'),
+  getLearningRecommend: () => api.get('/ai/learning/recommend'),
+  getLearningPath: () => api.get('/ai/learning/path'),
+  getAdaptiveQuestions: (params) => api.get('/ai/learning/adaptive', { params }),
+
   // 法海探案
   getCases: () => api.get('/cases'),
   getCaseDetail: (id) => api.get(`/cases/${id}`),

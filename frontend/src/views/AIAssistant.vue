@@ -34,16 +34,25 @@
           </div>
 
           <div class="panel-block">
-            <p class="panel-title">回答模式</p>
+            <p class="panel-title">对话模式</p>
             <div class="mode-list">
               <button
                 v-for="mode in modes"
                 :key="mode.key"
                 type="button"
                 :class="['mode-btn', { active: activeMode === mode.key }]"
-                @click="activeMode = mode.key"
+                @click="activeMode = mode.key; useAgent = false"
               >
                 {{ mode.label }}
+              </button>
+            </div>
+            <div class="agent-toggle" :class="{ active: useAgent }">
+              <button type="button" class="agent-btn" :class="{ active: useAgent }" @click="useAgent = !useAgent">
+                <font-awesome-icon icon="robot" />
+                <span>
+                  <strong>Agent 智能模式</strong>
+                  <small>AI 可主动查询数据、分析学情、生成方案</small>
+                </span>
               </button>
             </div>
           </div>
@@ -85,10 +94,18 @@
 
             <div v-for="(msg, i) in messages" :key="`${msg.role}-${i}`" :class="['message-row', msg.role]">
               <div v-if="msg.role === 'assistant'" class="avatar">
-                <font-awesome-icon icon="lightbulb" />
+                <font-awesome-icon :icon="msg.isAgent ? 'robot' : 'lightbulb'" />
               </div>
               <div class="message-bubble">
-                <div class="message-meta">{{ msg.role === 'user' ? '你' : 'AI 学习助手' }}</div>
+                <div class="message-meta">{{ msg.role === 'user' ? '你' : (msg.isAgent ? 'AI Agent' : 'AI 学习助手') }}</div>
+                <!-- Agent 工具调用过程展示 -->
+                <div v-if="msg.toolCalls && msg.toolCalls.length > 0" class="tool-calls">
+                  <div v-for="(tc, ti) in msg.toolCalls" :key="ti" class="tool-call-item" :class="tc.status">
+                    <font-awesome-icon :icon="tc.status === 'done' ? 'check-circle' : 'spinner'" :spin="tc.status !== 'done'" />
+                    <span class="tool-call-name">{{ tc.label }}</span>
+                    <span v-if="tc.summary" class="tool-call-summary">{{ tc.summary }}</span>
+                  </div>
+                </div>
                 <div class="message-content" v-html="formatContent(msg.content)"></div>
               </div>
             </div>
@@ -136,6 +153,8 @@ const activeMode = ref('coach')
 const lastUserMessage = ref('')
 const chatContainer = ref(null)
 const inputBox = ref(null)
+
+const useAgent = ref(false)
 
 const modes = [
   { key: 'coach', label: '教练式' },
@@ -246,44 +265,12 @@ async function sendMessage() {
 
   aiLoading.value = true
   try {
-    const history = messages.value
-      .slice(-14, -1)
-      .filter(m => m.role !== 'assistant' || m.content)
-      .filter(isValidMessage)
-      .map(m => ({ role: m.role, content: m.content }))
-
-    const token = localStorage.getItem('quiz_token')
-    const res = await fetch('/api/ai/chat/stream', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: JSON.stringify({ message: buildModePrompt(text), history })
-    })
-
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim()
-          if (data === '[DONE]') break
-          try {
-            const json = JSON.parse(data)
-            if (json.error) { aiMsg.content = json.error; break }
-            if (json.content) {
-              aiMsg.content += json.content
-              scrollToBottom()
-              saveHistory()
-            }
-          } catch {}
-        }
-      }
+    if (useAgent.value) {
+      // Agent 模式：调用 Agent API，支持工具调用可视化
+      await sendAgentMessage(text, aiMsg)
+    } else {
+      // 普通模式：流式对话
+      await sendNormalMessage(text, aiMsg)
     }
     if (!aiMsg.content) aiMsg.content = 'AI 没有返回有效内容，请重试。'
   } catch (e) {
@@ -293,6 +280,134 @@ async function sendMessage() {
     saveHistory()
     scrollToBottom()
   }
+}
+
+async function sendNormalMessage(text, aiMsg) {
+  const history = messages.value
+    .slice(-14, -1)
+    .filter(m => m.role !== 'assistant' || m.content)
+    .filter(isValidMessage)
+    .map(m => ({ role: m.role, content: m.content }))
+
+  const token = localStorage.getItem('quiz_token')
+  const res = await fetch('/api/ai/chat/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ message: buildModePrompt(text), history })
+  })
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6).trim()
+        if (data === '[DONE]') break
+        try {
+          const json = JSON.parse(data)
+          if (json.error) { aiMsg.content = json.error; break }
+          if (json.content) {
+            aiMsg.content += json.content
+            scrollToBottom()
+            saveHistory()
+          }
+        } catch {}
+      }
+    }
+  }
+}
+
+const TOOL_LABELS = {
+  search_questions: '语义搜索题库',
+  get_question_detail: '查询题目详情',
+  get_wrong_stats: '查询错题统计',
+  get_study_progress: '查询学习进度',
+  create_study_plan: '生成学习计划',
+  analyze_exam_readiness: '评估备考状态',
+  generate_practice_set: '生成练习题集',
+  get_chapter_knowledge: '查询章节知识点',
+  list_questions_by_chapter: '查询章节题目'
+}
+
+async function sendAgentMessage(text, aiMsg) {
+  aiMsg.isAgent = true
+  aiMsg.toolCalls = []
+
+  const history = messages.value
+    .slice(-14, -1)
+    .filter(m => m.role !== 'assistant' || m.content)
+    .filter(isValidMessage)
+    .map(m => ({ role: m.role, content: m.content }))
+
+  const token = localStorage.getItem('quiz_token')
+  const res = await fetch('/api/ai/agent/chat/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ message: text, history })
+  })
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6).trim()
+        if (data === '[DONE]') continue
+        try {
+          const json = JSON.parse(data)
+          if (json.type === 'tool_call') {
+            aiMsg.toolCalls.push({
+              name: json.tool,
+              label: TOOL_LABELS[json.tool] || json.tool,
+              args: json.args,
+              status: 'running',
+              summary: ''
+            })
+            scrollToBottom()
+          } else if (json.type === 'tool_result') {
+            const lastCall = aiMsg.toolCalls.find(tc => tc.name === json.tool && tc.status === 'running')
+            if (lastCall) {
+              lastCall.status = 'done'
+              lastCall.result = json.result
+              lastCall.summary = summarizeResult(json.result)
+            }
+            scrollToBottom()
+          } else if (json.type === 'content') {
+            aiMsg.content += json.content
+            scrollToBottom()
+            saveHistory()
+          } else if (json.type === 'error') {
+            aiMsg.content += json.content || 'Agent 处理出错'
+          }
+        } catch {}
+      }
+    }
+  }
+}
+
+function summarizeResult(result) {
+  if (!result) return ''
+  if (result.count !== undefined) return `找到 ${result.count} 条`
+  if (result.totalWrong !== undefined) return `共 ${result.totalWrong} 道错题`
+  if (result.summary) return `答题 ${result.summary.totalAnswered} 题，正确率 ${result.summary.overallAccuracy}%`
+  if (result.estimatedScore) return `预估分 ${result.estimatedScore}`
+  if (result.planDays) return `生成 ${result.planDays} 天计划`
+  if (result.resultCount !== undefined) return `检索到 ${result.resultCount} 条`
+  return '完成'
 }
 
 async function retryLast() {
@@ -834,5 +949,103 @@ function formatContent(text = '') {
   .chat-scroll {
     padding: 14px 12px;
   }
+}
+
+/* Agent 切换按钮 */
+.agent-toggle {
+  margin-top: 10px;
+}
+
+.agent-btn {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+  color: #334155;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.agent-btn:hover {
+  border-color: #8b5cf6;
+  background: #f5f3ff;
+}
+
+.agent-btn.active {
+  border-color: #7c3aed;
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.agent-btn svg {
+  margin-top: 2px;
+  color: #7c3aed;
+  font-size: 16px;
+}
+
+.agent-btn strong {
+  display: block;
+  font-size: 13px;
+}
+
+.agent-btn small {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.agent-btn.active small {
+  color: #7c3aed;
+}
+
+/* 工具调用展示 */
+.tool-calls {
+  margin-bottom: 10px;
+  padding: 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.tool-call-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12px;
+  color: #475569;
+}
+
+.tool-call-item + .tool-call-item {
+  border-top: 1px solid #e2e8f0;
+}
+
+.tool-call-item.running {
+  color: #d97706;
+}
+
+.tool-call-item.done {
+  color: #059669;
+}
+
+.tool-call-item svg {
+  font-size: 12px;
+  width: 14px;
+}
+
+.tool-call-name {
+  font-weight: 600;
+}
+
+.tool-call-summary {
+  margin-left: auto;
+  color: #94a3b8;
+  font-size: 11px;
 }
 </style>

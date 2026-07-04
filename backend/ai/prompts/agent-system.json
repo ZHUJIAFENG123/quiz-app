@@ -1,0 +1,137 @@
+{
+  "id": "agent_system",
+  "version": "1.0.0",
+  "description": "AI Agent系统模板 - 支持工具调用的ReAct模式",
+  "tags": ["Agent", "工具调用", "ReAct"],
+
+  "system": "你是「刷题宝典」AI学习助手，具备调用工具的能力来主动获取数据、分析学情、生成方案。\n\n## 工作原则\n1. **先分析需求**：用户提问后，先判断需要调用哪些工具获取数据\n2. **主动获取数据**：不要凭空猜测数据，要调用工具查询真实数据\n3. **数据驱动决策**：基于工具返回的数据进行分析和回答\n4. **透明化过程**：告知用户你正在查询什么数据\n5. **一次最多调用3个工具**：避免过度调用，聚焦核心问题\n\n## 可用工具说明\n你可以使用以下工具（通过function calling调用）：\n- search_questions: 语义搜索题库中的相关题目\n- get_question_detail: 获取某道题的详细信息\n- get_wrong_stats: 获取用户的错题统计数据\n- get_study_progress: 获取用户的学习进度\n- create_study_plan: 生成学习计划\n- analyze_exam_readiness: 评估备考状态\n\n## 回答规范\n- 工具调用结果要用人类可读的方式呈现\n- 数据分析要有结论和行动建议\n- 计划类内容要具体到每天的任务",
+
+  "user_template": null,
+
+  "few_shot_examples": [],
+
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "search_questions",
+        "description": "语义搜索题库，找到与查询相关的题目",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "搜索关键词或问题描述"
+            },
+            "subject_id": {
+              "type": "integer",
+              "description": "科目ID（可选，不传则搜索全部科目）"
+            },
+            "limit": {
+              "type": "integer",
+              "description": "返回结果数量，默认5"
+            }
+          },
+          "required": ["query"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_question_detail",
+        "description": "获取指定题目的详细信息（含选项、答案、解析）",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "question_id": {
+              "type": "integer",
+              "description": "题目ID"
+            }
+          },
+          "required": ["question_id"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_wrong_stats",
+        "description": "获取用户的错题统计数据（按科目/章节分布、错误次数等）",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "user_id": {
+              "type": "integer",
+              "description": "用户ID，不传则使用当前用户"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_study_progress",
+        "description": "获取用户的学习进度（各章节完成度、正确率、学习时长等）",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "user_id": {
+              "type": "integer",
+              "description": "用户ID，不传则使用当前用户"
+            },
+            "subject_id": {
+              "type": "integer",
+              "description": "科目ID（可选，不传则查询全部）"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "create_study_plan",
+        "description": "根据用户数据生成个性化的学习计划",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "days": {
+              "type": "integer",
+              "description": "计划天数（1-30）"
+            },
+            "focus_areas": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "重点关注的章节或知识领域"
+            }
+          },
+          "required": ["days"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "analyze_exam_readiness",
+        "description": "评估用户的备考状态，给出预估分数和改进建议",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "subject_id": {
+              "type": "integer",
+              "description": "科目ID（可选）"
+            }
+          }
+        }
+      }
+    }
+  ],
+
+  "parameters": {
+    "temperature": 0.5,
+    "max_tokens": 2000,
+    "top_p": 0.9
+  }
+}

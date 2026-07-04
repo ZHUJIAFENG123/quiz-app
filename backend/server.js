@@ -1,9 +1,15 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿require('dotenv').config();
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { loadDatabase, saveNow } = require('./config/database');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const aiLogger = require('./ai/middleware/ai-logger');
+const observability = require('./ai/observability');
+const vectorStore = require('./ai/rag/vector-store');
+const indexer = require('./ai/rag/indexer');
+const { initEvaluation } = require('./ai/evaluation/metrics');
+const { rateLimitMiddleware } = require('./ai/governance/rate-limiter');
 
 async function startServer() {
   // 加载数据库
@@ -120,7 +126,24 @@ async function startServer() {
       UNIQUE(question_id, type)
     );
   `);
-  
+
+  // 初始化 AI 链路追踪模块
+  aiLogger.init(db);
+  console.log('[AI] 链路追踪模块已启动');
+
+  // 初始化评估模块（ai_feedback 表）
+  initEvaluation(db);
+  console.log('[AI] 评估模块已初始化');
+
+  // 初始化向量存储
+  vectorStore.initVectorStore(db);
+  console.log('[AI] 向量存储已初始化');
+
+  // 加载 Agent 工具
+  const toolRegistry = require('./ai/agent/tool-registry');
+  toolRegistry.loadBuiltinTools({ db });
+  console.log('[AI] Agent 工具已加载');
+
   saveNow();
   console.log('数据库表结构初始化完成');
 
@@ -202,10 +225,15 @@ async function startServer() {
 
       const newCount = db.prepare("SELECT COUNT(*) as count FROM questions").get();
       const newSubjectCount = db.prepare("SELECT COUNT(*) as count FROM subjects").get();
-      console.log("[导入] ✅ 完成！" + newSubjectCount.count + " 科目, " + newCount.count + " 题");
+      console.log(`[\u5bfc\u5165] \u2705 \u5b8c\u6210\uff01` + newSubjectCount.count + ` \u79d1\u76ee, ` + newCount.count + ` \u9898`);
       saveNow();
+    
+      // 导入完成后调度 embedding 索引
+      indexer.scheduleIndexing(db, 8000);
     } else {
-      console.log("[导入] 数据库已有 " + totalQuestions.count + " 题，跳过");
+      console.log("[\u5bfc\u5165] \u6570\u636e\u5e93\u5df2\u6709 " + totalQuestions.count + " \u9898\uff0c\u8df3\u8fc7");
+      // 即使跳过导入，也要检查索引是否完整
+      indexer.scheduleIndexing(db, 8000);
     }
   } catch (err) {
     console.error("[导入] ❗ 导入失败: " + err.message);
@@ -266,6 +294,24 @@ async function startServer() {
   app.use('/api/wrong', require('./routes/wrong'));
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api/ai', require('./routes/ai'));
+
+  // ============ AI 可观测性接口 ============
+  app.get('/api/ai-observability/dashboard', (req, res) => {
+    const dashboard = observability.getDashboard(db);
+    res.json({ success: true, data: dashboard });
+  });
+
+  app.get('/api/ai-observability/templates', (req, res) => {
+    const templateStats = observability.getTemplateComparison(db, req.query.period || '7d');
+    const templateList = require('./ai/prompts').listTemplates();
+    res.json({ success: true, data: { stats: templateStats, templates: templateList } });
+  });
+
+  app.get('/api/ai-observability/traces', (req, res) => {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const traces = aiLogger.getRecentTraces(limit);
+    res.json({ success: true, data: traces });
+  });
   app.use('/api/database', require('./routes/database'));
   app.use('/api/cases', require('./routes/cases').router);
 
@@ -323,9 +369,16 @@ async function startServer() {
   app.use(notFoundHandler);
   app.use(errorHandler);
 
-  app.listen(PORT, () => {
+  // 优雅关闭
+  const server = app.listen(PORT, () => {
     console.log(`后端服务已启动: http://localhost:${PORT}`);
     console.log(`数据库路径: ${path.join(__dirname, 'data', 'quiz.db')}`);
+  });
+
+  process.on('SIGTERM', () => {
+    console.log('[Server] 收到 SIGTERM，正在关闭...');
+    aiLogger.shutdown();
+    server.close();
   });
 
   return app;

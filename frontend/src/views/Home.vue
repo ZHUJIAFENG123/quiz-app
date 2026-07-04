@@ -121,6 +121,18 @@
             </div>
             <span class="text-xs text-gray-700 font-medium">学习报表</span>
           </button>
+          <button @click="$router.push('/knowledge-graph')" class="tool-card group">
+            <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+              <font-awesome-icon icon="share" class="text-indigo-600" />
+            </div>
+            <span class="text-xs text-gray-700 font-medium">知识图谱</span>
+          </button>
+          <button @click="$router.push('/exam?mode=smart')" class="tool-card group">
+            <div class="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+              <font-awesome-icon icon="lightbulb" class="text-violet-600" />
+            </div>
+            <span class="text-xs text-gray-700 font-medium">AI组卷</span>
+          </button>
         </div>
       </div>
 

@@ -4,7 +4,25 @@
     <template v-if="!examStarted">
       <h1 class="text-xl font-bold text-gray-800 mb-4">模拟考试</h1>
 
-      <div class="card space-y-4">
+      <!-- 模式切换 -->
+      <div class="flex gap-2 mb-4">
+        <button
+          @click="examMode = 'normal'"
+          :class="['flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all',
+            examMode === 'normal' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500']"
+        >
+          <font-awesome-icon icon="file-pen" class="mr-1" /> 常规考试
+        </button>
+        <button
+          @click="examMode = 'smart'"
+          :class="['flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all',
+            examMode === 'smart' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500']"
+        >
+          <font-awesome-icon icon="lightbulb" class="mr-1" /> AI智能组卷
+        </button>
+      </div>
+
+      <div v-if="examMode === 'normal'" class="card space-y-4">
         <!-- 科目选择 -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">选择科目</label>
@@ -64,6 +82,67 @@
         >
           <font-awesome-icon v-if="generating" icon="refresh" spin class="mr-2" />
           {{ generating ? '正在生成试卷...' : '开始考试' }}
+        </button>
+      </div>
+
+      <!-- ====== AI智能组卷设置 ====== -->
+      <div v-if="examMode === 'smart'" class="card space-y-4">
+        <!-- 组卷模式 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">组卷策略</label>
+          <div class="space-y-2">
+            <button
+              v-for="m in smartModes"
+              :key="m.key"
+              @click="smartSetup.mode = m.key"
+              :class="['w-full text-left p-3 rounded-xl border-2 transition-all',
+                smartSetup.mode === m.key ? 'border-violet-500 bg-violet-50' : 'border-gray-200 hover:border-gray-300']"
+            >
+              <div class="flex items-center gap-2">
+                <font-awesome-icon :icon="m.icon" :class="m.iconClass" />
+                <span class="text-sm font-medium">{{ m.label }}</span>
+              </div>
+              <p class="text-xs text-gray-500 mt-1 ml-6">{{ m.desc }}</p>
+            </button>
+          </div>
+        </div>
+
+        <!-- 题目数量 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">题目数量：<span class="text-violet-600 font-bold">{{ smartSetup.count }}</span> 题</label>
+          <input v-model.number="smartSetup.count" type="range" min="10" max="100" step="5" class="w-full accent-violet-600" />
+          <div class="flex justify-between text-xs text-gray-400"><span>10</span><span>100</span></div>
+        </div>
+
+        <!-- 考试时长 -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">考试时长：<span class="text-violet-600 font-bold">{{ smartSetup.timeLimit }}</span> 分钟</label>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="d in [15, 30, 45, 60, 90]"
+              :key="d"
+              @click="smartSetup.timeLimit = d"
+              :class="['px-3 py-1.5 rounded-lg text-sm border transition-colors',
+                smartSetup.timeLimit === d ? 'border-violet-600 bg-violet-50 text-violet-600 font-medium' : 'border-gray-200 text-gray-600 hover:border-gray-300']"
+            >{{ d }}分钟</button>
+          </div>
+        </div>
+
+        <!-- 用户画像摘要 -->
+        <div v-if="userProfile" class="bg-violet-50 rounded-xl p-3 text-xs text-violet-700 space-y-1">
+          <p class="font-medium">📊 你的学习画像</p>
+          <p>已做题：{{ userProfile.totalStudied }} 题，正确率：{{ (userProfile.overallAccuracy * 100).toFixed(0) }}%</p>
+          <p>能力值：{{ '⭐'.repeat(userProfile.abilityLevel) }}（{{ userProfile.abilityLevel }}/5）</p>
+          <p v-if="userProfile.weakChapters.length">薄弱章节：{{ userProfile.weakChapters.slice(0, 3).map(c => c.chapter_name).join('、') }}</p>
+        </div>
+
+        <button
+          @click="startSmartExam"
+          :disabled="generating"
+          class="w-full py-3 rounded-xl text-base font-medium bg-violet-600 text-white hover:bg-violet-700 transition-colors disabled:opacity-50"
+        >
+          <font-awesome-icon v-if="generating" icon="refresh" spin class="mr-2" />
+          {{ generating ? 'AI正在分析并组卷...' : '🧠 AI智能组卷' }}
         </button>
       </div>
     </template>
@@ -220,10 +299,14 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import API from '../api'
 
 const router = useRouter()
+const route = useRoute()
+
+// ===== 考试模式 =====
+const examMode = ref(route.query.mode === 'smart' ? 'smart' : 'normal')
 
 // ===== 设置 =====
 const subjects = ref([])
@@ -242,7 +325,49 @@ onMounted(async () => {
   try {
     subjects.value = await API.getSubjects() || []
   } catch { /* 静默 */ }
+  // 智能模式加载用户画像
+  if (examMode.value === 'smart') loadUserProfile()
 })
+
+// ===== AI智能组卷 =====
+const smartSetup = reactive({ mode: 'balanced', count: 20, timeLimit: 30 })
+const userProfile = ref(null)
+const smartExamAnswers = ref(null) // 智能组卷的答案映射
+
+const smartModes = [
+  { key: 'balanced', label: '均衡模式', desc: '各章节按比例分配，全面覆盖', icon: 'chart-pie', iconClass: 'text-blue-500' },
+  { key: 'weakness', label: '薄弱攻克', desc: '重点出题薄弱章节(70%)，针对性提升', icon: 'fire', iconClass: 'text-red-500' },
+  { key: 'simulation', label: '模拟考试', desc: '按真题分布模拟，贴近真实考试', icon: 'trophy', iconClass: 'text-amber-500' }
+]
+
+async function loadUserProfile() {
+  try { userProfile.value = await API.getUserProfile() } catch {}
+}
+
+async function startSmartExam() {
+  generating.value = true
+  try {
+    const data = await API.generateSmartExam({
+      totalCount: smartSetup.count,
+      mode: smartSetup.mode,
+      timeLimit: smartSetup.timeLimit
+    })
+    sessionId.value = data.sessionId
+    examQuestions.value = data.questions || []
+    smartExamAnswers.value = data._answers || [] // 存储答案
+    totalSeconds.value = (smartSetup.timeLimit || 30) * 60
+    examStartTime.value = Date.now()
+    examStarted.value = true
+    currentIndex.value = 0
+    Object.keys(examAnswers).forEach(k => delete examAnswers[k])
+    Object.keys(examMultiTemp).forEach(k => delete examMultiTemp[k])
+    startTimer()
+  } catch (e) {
+    alert('AI组卷失败：' + (e.response?.data?.message || e.message))
+  } finally {
+    generating.value = false
+  }
+}
 
 async function onSetupSubjectChange() {
   setup.chapter_id = null
@@ -443,7 +568,41 @@ async function submitExam() {
   clearInterval(timerInterval.value)
   
   try {
-    // 批量提交所有已作答的题目
+    // 智能组卷：本地计算结果并存储到 localStorage
+    if (sessionId.value?.startsWith('smart_') && smartExamAnswers.value) {
+      const answers = smartExamAnswers.value
+      let correct = 0
+      const details = examQuestions.value.map(q => {
+        const userAns = examAnswers[q.id]
+        const correctAns = answers.find(a => a.id === q.id)?.answer
+        const isCorrect = userAns && String(userAns) === String(correctAns)
+        if (isCorrect) correct++
+        return {
+          question_id: q.id,
+          content: q.content,
+          type: q.type,
+          user_answer: userAns ? (Array.isArray(userAns) ? userAns.join(',') : String(userAns)) : '',
+          correct_answer: correctAns,
+          is_correct: isCorrect,
+          analysis: answers.find(a => a.id === q.id)?.analysis || ''
+        }
+      })
+      const timeTaken = Math.round((Date.now() - examStartTime.value) / 1000)
+      const result = {
+        session_id: sessionId.value,
+        mode: 'smart',
+        total: examQuestions.value.length,
+        correct,
+        accuracy: examQuestions.value.length > 0 ? Math.round(correct / examQuestions.value.length * 100) : 0,
+        time_taken: timeTaken,
+        details
+      }
+      localStorage.setItem(`smart_exam_${sessionId.value}`, JSON.stringify(result))
+      router.push(`/exam/result/${sessionId.value}?time=${timeTaken}&smart=1`)
+      return
+    }
+
+    // 常规考试：批量提交到后端
     const answers = examQuestions.value
       .filter(q => examAnswers[q.id] !== undefined)
       .map(q => ({
@@ -457,8 +616,10 @@ async function submitExam() {
     API.syncToCloud().catch(() => {})
   } finally {
     submitting.value = false
-    const timeTaken = Math.round((Date.now() - examStartTime.value) / 1000)
-    router.push(`/exam/result/${sessionId.value}?time=${timeTaken}`)
+    if (!sessionId.value?.startsWith('smart_')) {
+      const timeTaken = Math.round((Date.now() - examStartTime.value) / 1000)
+      router.push(`/exam/result/${sessionId.value}?time=${timeTaken}`)
+    }
   }
 }
 </script>
