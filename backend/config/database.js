@@ -24,9 +24,9 @@ function createWrapper(db) {
   return {
     raw: db,
     
-    // 执行SQL，无返回值
+    // 执行SQL，支持SELECT返回结果（兼容 sql.js 原生 exec 格式）
     exec(sql) {
-      db.run(sql);
+      return db.exec(sql);
     },
 
     // 准备语句

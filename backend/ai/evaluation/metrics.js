@@ -36,10 +36,10 @@ function initEvaluation(db) {
 function submitFeedback(db, data) {
   if (!db) return false;
   try {
-    db.run(`
+    db.prepare(`
       INSERT INTO ai_feedback (trace_id, user_id, message_index, rating, comment)
       VALUES (?, ?, ?, ?, ?)
-    `, [data.traceId || '', data.userId || 0, data.messageIndex || -1, data.rating, data.comment || '']);
+    `).run(data.traceId || '', data.userId || 0, data.messageIndex || -1, data.rating, data.comment || '');
     return true;
   } catch (err) {
     console.error('[Evaluation] 提交反馈失败:', err.message);

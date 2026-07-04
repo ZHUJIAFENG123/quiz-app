@@ -31,7 +31,7 @@ function init(database) {
   db = database;
   
   // 创建追踪表
-  db.run(`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS ai_traces (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       trace_id TEXT UNIQUE,
@@ -55,10 +55,10 @@ function init(database) {
   `);
 
   // 创建索引优化查询性能
-  db.run(`CREATE INDEX IF NOT EXISTS idx_traces_user ON ai_traces(user_id)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_traces_template ON ai_traces(prompt_template_id)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_traces_status ON ai_traces(status)`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_traces_created ON ai_traces(created_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_traces_user ON ai_traces(user_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_traces_template ON ai_traces(prompt_template_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_traces_status ON ai_traces(status)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_traces_created ON ai_traces(created_at)`);
 
   // 启动定时刷新
   flushTimer = setInterval(flushBuffer, FLUSH_INTERVAL);
@@ -166,33 +166,28 @@ function flushBuffer() {
 
   for (const r of records) {
     try {
-      db.run(`
+      db.prepare(`
         INSERT OR REPLACE INTO ai_traces 
         (trace_id, user_id, prompt_template_id, prompt_version, model,
          input_tokens, output_tokens, total_tokens, latency_ms, cache_hit,
          status, error_message, request_path, request_type, rag_used,
          rag_results_count, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
+      `).run(
         r.trace_id, r.user_id, r.prompt_template_id, r.prompt_version, r.model,
         r.input_tokens, r.output_tokens, r.total_tokens, r.latency_ms, r.cache_hit,
         r.status, r.error_message, r.request_path, r.request_type, r.rag_used,
         r.rag_results_count, r.created_at
-      ]);
+      );
     } catch (err) {
       console.error('[AITracer] 写入追踪记录失败:', err.message);
     }
   }
 
-  // 持久化到文件
+  // 触发数据库持久化
   try {
-    if (db.export) {
-      const data = db.export();
-      const fs = require('fs');
-      const path = require('path');
-      const dbPath = path.join(__dirname, '..', '..', 'data', 'quiz.db');
-      fs.writeFileSync(dbPath, Buffer.from(data));
-    }
+    const { saveNow } = require('../../config/database');
+    saveNow();
   } catch (err) {
     // 静默失败，不影响主流程
   }

@@ -79,11 +79,11 @@ function saveEmbedding(db, questionId, embedding, meta = {}) {
   
   try {
     const embeddingJson = JSON.stringify(embedding);
-    db.run(`
+    db.prepare(`
       INSERT OR REPLACE INTO question_embeddings 
       (question_id, embedding, content_hash, subject_id, chapter_id, model, dimensions, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    `, [
+    `).run(
       questionId,
       embeddingJson,
       meta.contentHash || '',
@@ -91,7 +91,7 @@ function saveEmbedding(db, questionId, embedding, meta = {}) {
       meta.chapterId || 0,
       meta.model || 'text-embedding-v3',
       meta.dimensions || embedding.length
-    ]);
+    );
     return true;
   } catch (err) {
     console.error(`[VectorStore] 保存 embedding 失败 (question_id=${questionId}):`, err.message);
